@@ -1,0 +1,6 @@
+﻿  Client.cpp
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\client\client.cpp(499): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\client\client.cpp(510): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\client\client.cpp(517): warning C4129: 'm': sequência de escape de caractere não reconhecida
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\client\client.cpp(517): warning C4129: 'g': sequência de escape de caractere não reconhecida
+  Client.vcxproj -> C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Debug\Client.exe

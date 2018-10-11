@@ -1,0 +1,8 @@
+﻿  Server.cpp
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(183): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(196): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(207): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(391): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(404): warning C4018: '<': incompatibilidade de signed/unsigned
+c:\users\rafae\documents\visual studio 2017\projects\streamlabs_assingment\streamlabstest\server\server.cpp(415): warning C4018: '<': incompatibilidade de signed/unsigned
+  Server.vcxproj -> C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Debug\Server.exe
