@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Binaries\Server\CMakeFiles\0ab469206056f5c4f4267f0d9bb7da1b\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{DBAA7B78-55EC-33E1-B775-D5AD83C72D98}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
