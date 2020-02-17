@@ -1,3 +1,0 @@
-C:/Users/rafae/Documents/Visual Studio 2017/Projects/StreamLabs_Assingment/StreamLabsTest/Binaries/Client/CMakeFiles/Client.dir
-C:/Users/rafae/Documents/Visual Studio 2017/Projects/StreamLabs_Assingment/StreamLabsTest/Binaries/Client/CMakeFiles/ALL_BUILD.dir
-C:/Users/rafae/Documents/Visual Studio 2017/Projects/StreamLabs_Assingment/StreamLabsTest/Binaries/Client/CMakeFiles/ZERO_CHECK.dir

@@ -1,8 +1,0 @@
-﻿  Building Custom Rule C:/Users/rafae/Documents/Visual Studio 2017/Projects/StreamLabs_Assingment/StreamLabsTest/Client/CMakeLists.txt
-  CMake does not need to re-run because C:/Users/rafae/Documents/Visual Studio 2017/Projects/StreamLabs_Assingment/StreamLabsTest/Binaries/Client/CMakeFiles/generate.stamp is up-to-date.
-  Client.cpp
-C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Client\Client.cpp(499): warning C4018: '<': incompatibilidade de signed/unsigned
-C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Client\Client.cpp(510): warning C4018: '<': incompatibilidade de signed/unsigned
-C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Client\Client.cpp(517): warning C4129: 'm': sequência de escape de caractere não reconhecida
-C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Client\Client.cpp(517): warning C4129: 'g': sequência de escape de caractere não reconhecida
-  Client.vcxproj -> C:\Users\rafae\Documents\Visual Studio 2017\Projects\StreamLabs_Assingment\StreamLabsTest\Binaries\Client\Debug\Client.exe
