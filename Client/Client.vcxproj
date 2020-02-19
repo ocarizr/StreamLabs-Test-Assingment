@@ -154,6 +154,7 @@
     <ClInclude Include="DefaultConnection.h" />
     <ClInclude Include="IConnection.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp" />
