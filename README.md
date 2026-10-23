@@ -19,9 +19,26 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-The repository contains the legacy Windows implementation and Visual Studio solution. Two incomplete, independent CMake definitions exist; there is no root CMake build, automated test suite, or CI workflow yet.
+M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, formatting checks, initial GitHub Actions validation, and tag-triggered release packaging. The executables support `--help` and `--version`; starting IPC is deliberately unavailable until the later implementation milestones.
 
-The [modernization plan](docs/modernization-plan.md) defines the proposed architecture, acceptance tests, security model, and implementation sequence. This change establishes the plan. The architecture and tooling below are targets for subsequent implementation, not completed features. The legacy sources were inspected but were not built or executed in this stage.
+The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
+
+The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. Protobuf integration starts in M2, domain behavior in M3, and named-pipe transport in M4. See [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md).
+
+## Build and test
+
+Install CMake 3.25+, Ninja, Python 3.10+, and MSVC Build Tools with the x64 C++ workload and Windows SDK. The Visual Studio IDE is optional. In PowerShell from the repository root:
+
+```powershell
+. ./scripts/Enter-Toolchain.ps1
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+ctest --preset windows-debug
+./build/windows-debug/pipeforge-client.exe --help
+./build/windows-debug/pipeforge-server.exe --version
+```
+
+The first test-enabled configure downloads pinned GoogleTest sources. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable scaffold can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5.
 
 ## Design choices
 
@@ -38,12 +55,16 @@ The proposed design replaces the original decisions:
 
 The plan explains the architectural tradeoffs and how server-side class registration satisfies requirements 4, 7, and 8.
 
-## Planned dependencies
+## Dependencies
 
-- [Protocol Buffers](https://github.com/protocolbuffers/protobuf): reuse the official `protoc` generator and C++ runtime for binary serialization; implement only PipeForge schemas, validation, and domain conversion.
-- [GoogleTest](https://github.com/google/googletest): reuse the upstream test framework with CTest, adding GoogleMock only where useful.
+- [GoogleTest](https://github.com/google/googletest), v1.17.0 at revision `52eb8108c5bdec04579160ae17225d66034bd723`: test-only, built through CMake FetchContent and integrated with CTest.
+- [Protocol Buffers](https://github.com/protocolbuffers/protobuf), planned for M2: reuse official `protoc` and the C++ runtime; implement only PipeForge schemas, validation, and domain conversion.
 
-Dependencies will be built through CMake from pinned upstream sources. Generated code and downloaded sources remain in the build directory. The plan defines version matching, transitive dependencies, licensing, and reproducibility checks. Binary encoding is intended to reduce message overhead; performance gains will be measured rather than assumed.
+Downloaded sources and generated output remain in the build directory. The plan defines version matching, transitive dependencies, and reproducibility checks. Binary serialization efficiency will be measured rather than assumed.
+
+## Releases
+
+Pushing a version tag such as `V1.0`, `V1.0.0`, or `V1.0.1` publishes a release only if the tagged commit belongs to `master` history. Lowercase `v` is also accepted. The pipeline builds that exact commit and produces three Windows x64 ZIPs: client, server, and bundle. Each contains only the required executable runtime files. Ordinary branch pushes and pull requests never publish. See [release instructions](docs/releases.md) for examples and failure handling.
 
 ## Assumptions
 

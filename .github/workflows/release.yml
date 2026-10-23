@@ -1,0 +1,98 @@
+name: Publish release
+
+# A branch push, PR, or manual run never publishes. Version syntax and master
+# ancestry are checked separately: tag and branch filters cannot express this.
+on:
+  push:
+    tags: ['[vV]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.provenance.outputs.version }}
+      commit: ${{ steps.provenance.outputs.commit }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate version, tagged commit, and master ancestry
+        id: provenance
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          EVENT_COMMIT: ${{ github.sha }}
+        run: python3 scripts/release.py validate --tag "$RELEASE_TAG" --commit "$EVENT_COMMIT"
+
+  build:
+    needs: validate
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Revalidate, compile tagged version, test, and package
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
+          python scripts/release.py validate --tag $env:RELEASE_TAG --commit $env:RELEASE_COMMIT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --preset windows-release "-DPIPEFORGE_VERSION=$env:RELEASE_VERSION"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build --preset windows-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --preset windows-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/release.py package --build build/windows-release --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/release.py smoke --tag $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-packages
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [validate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      # This job never checks out or executes project code with a write token.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-packages
+          path: dist
+      - name: Publish tested packages on the existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+        run: |
+          set -euo pipefail
+          actual_commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq '.sha')
+          test "$actual_commit" = "$RELEASE_COMMIT"
+          packages=(dist/*.zip)
+          test "${#packages[@]}" -eq 3
+          gh release create "$RELEASE_TAG" "${packages[@]}" --verify-tag --draft \
+            --title "PipeForge $RELEASE_TAG" --generate-notes
+          gh release edit "$RELEASE_TAG" --draft=false

@@ -1,12 +1,12 @@
 # PipeForge modernization plan
 
-Status: proposed implementation baseline. Date: 2026-10-23.
+Status: M0 and M1 implemented; M2-M6 planned. Updated: 2026-10-23.
 
-This stage reviews the repository and defines the work. It does not implement the replacement application, tests, CMake migration, or GitHub Actions workflows. R1-R8 refer to the numbered functional requirements in the README. These decisions replace the legacy design choices and assumptions.
+M1 establishes the CMake build, minimal separate executables, GoogleTest/CTest harness, formatting, initial validation workflows, and tag-only release packaging. The protocol, domain, and named-pipe application behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. These decisions replace the legacy design choices and assumptions. See [build instructions](build.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
 
 ## 1. Source-review findings
 
-These are source observations, not results of executing the legacy binaries.
+These are historical observations from the M0 source review, not results of executing the legacy binaries. M1 retires the solution/project files and untracks generated artifacts; retained legacy sources are excluded from the replacement build.
 
 | Finding and evidence | Consequence | Planned response |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ R7 does not specify who initiates registration or require uploading source. The 
 
 ### Components and dependencies
 
-Proposed layout, to be created during implementation:
+Target layout, introduced incrementally (protocol/domain/transport remain planned):
 
 ```text
 CMakeLists.txt / CMakePresets.json
@@ -149,6 +149,8 @@ Use target-scoped language standards, warnings, include paths, dependencies, and
 
 ### Upstream dependency integration
 
+M1 implements GoogleTest acquisition at immutable revision `52eb8108c5bdec04579160ae17225d66034bd723` (v1.17.0). Protobuf acquisition, generated schemas, and the protocol library remain M2 work. See [dependency notices](third-party.md).
+
 Use the official [protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf) and [google/googletest](https://github.com/google/googletest) implementations. Both provide CMake integration; PipeForge owns its schemas, adapters, and tests. No custom Protobuf parser, byte packer, or testing framework is planned.
 
 - Centralize acquisition in `cmake/Dependencies.cmake` using CMake FetchContent with immutable revisions or verified archive hashes. Select supported releases during M1/M2, record their licenses/notices, and update them through reviewed changes. Do not fetch moving branches or resolve unspecified system packages silently.
@@ -173,6 +175,16 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
+M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, formatting, and release package smoke tests. The remaining analysis, sanitizer, fuzzing, transport, and documentation jobs in the table are planned, not present checks. M1 does not use a dependency cache; cache keys above apply when caching is introduced.
+
+### Release publishing (added to M1)
+
+Only a pushed tag matching `Vmajor.minor` or `Vmajor.minor.patch` (lowercase `v` also accepted) may publish. Validate the exact tag/event/checkout commit and require ancestry in fetched `origin/master`, including historical master commits. Branch pushes, pull requests, and manual dispatch never publish.
+
+Build the validated commit on Windows x64 in Release, inject its normalized version, run tests, and install client/server runtime components into fresh staging directories. Produce exactly three ZIP assets: client, server, and bundle. Exclude sources, development libraries, symbols, and tests; include only necessary runtime files. Run isolated extraction/startup/version checks before publishing. Use static CRT for M1 executables; extend manifests and notices explicitly if future runtime dependencies are added.
+
+Separate read-only validation/build jobs from a write-authorized publication job. Recheck the remote tag, upload tested ZIPs to a draft release, then publish. Never silently overwrite existing releases or moved tags. The workflow is implemented in M1; remote execution awaits a user push, and this work does not publish a release. Detailed commands and failure handling are in [release instructions](releases.md).
+
 Document public interfaces with Doxygen comments describing purpose, parameters, returns/errors, ownership, thread safety, cancellation, and side effects. Explain non-obvious protocol/security/lifetime choices near code. Avoid comments that merely restate statements. Keep code and documentation in English for consistency across the project.
 
 Generated HTML artifacts are the initial deliverable. GitHub Pages is the preferred optional published API reference. A wiki summary is optional: confirm wiki availability and authentication, generate into a temporary checkout, and update generated pages only from trusted branch builds or manual dispatch. Do not assume `GITHUB_TOKEN` can write to the separate wiki repository. Publishing setup must not block required build/test validation.
@@ -181,8 +193,8 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 
 | Milestone | Work and test-first focus | Exit criteria |
 | --- | --- | --- |
-| M0: planning, this change | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope; stage intended files without committing. |
-| M1: build and test harness | Root CMake/presets, pinned upstream dependency acquisition, minimal separate executable targets, GoogleTest/CTest, warnings, formatting, initial build CI. Remove solution/project/PCH dependencies as replacement targets become viable; untrack generated `.vs`, `Debug`, and `VS Build` outputs. | Clean checkout builds/tests without an IDE; generated outputs are untracked. Do not claim feature parity yet. |
+| M0: planning (complete) | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope. |
+| M1: build and test harness (implemented) | Root CMake/presets, pinned GoogleTest acquisition, separate executable scaffolds, CTest, warnings, formatting, initial build CI, tag-only release validation/packaging/publishing workflow. Retire solution/project build entry points; untrack generated `.vs`, `Debug`, and `VS Build` outputs. | Clean-source build/test without an IDE; generated outputs untracked; three runtime ZIPs pass extraction smoke tests. Remote CI/publication awaits a push. No IPC feature parity claimed. |
 | M2: protocol | Version-1 `.proto` schemas and typed errors; malformed-input/framing tests before implementation; official pinned Protobuf/protoc integration, static `pipeforge-protocol` library linked by both consumers, tidy, sanitizers, fuzz harness, representative size/performance baseline. | Bounded parsing and semantic validation pass; clean parallel generation and both consumer links succeed; protocol tests and fuzz smoke pass; measurements documented without assumed speedups. |
 | M3: domain/services | Typed repositories, registry/factories/metadata, Counter and second test type, object lifecycle, dispatcher. | In-process R3/R4/R6/R7/R8 tests, including ownership/quota failures. |
 | M4: Windows IPC | RAII wrappers, DACL, framing, overlapped accept/read/write, deadlines, cancellation, bounded sessions, shutdown. | Real transport/failure tests and pending-operation cleanup pass under ASan. |
