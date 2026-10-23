@@ -25,6 +25,7 @@ class TranslationUnitSelectionTests(unittest.TestCase):
             "note: inspect this expression\n"
         )
         visible = check_tidy.actionable_output(output)
+
         self.assertNotIn("163773 warnings generated.", visible)
         self.assertIn("src/main.cpp:12:3: error: unsafe access", visible)
         self.assertIn("2 warnings and 1 error generated.", visible)
@@ -32,27 +33,38 @@ class TranslationUnitSelectionTests(unittest.TestCase):
 
     def test_compiler_warning_text_is_never_hidden(self):
         output = "src/main.cpp:1:1: warning: 12 warnings generated. [check]\n"
+
         self.assertEqual(check_tidy.actionable_output(output), output)
 
     def test_report_preserves_raw_counts_and_failing_analyzer_status(self):
         root = Path(__file__).resolve().parents[2]
         output = "163773 warnings generated.\nsrc/main.cpp:1: error: defect [check]\n"
+
         with tempfile.TemporaryDirectory() as directory:
             build = Path(directory)
-            (build / "compile_commands.json").write_text(json.dumps([
-                {"file": str(root / "src/cli/application.cpp"), "directory": str(root)}
-            ]), encoding="utf-8")
+            (build / "compile_commands.json").write_text(
+                json.dumps(
+                    [{"file": str(root / "src/cli/application.cpp"), "directory": str(root)}]
+                ),
+                encoding="utf-8",
+            )
+
+            # Simulate successful setup followed by a failing analyzer invocation.
             responses = [
                 mock.Mock(stdout="LLVM version 19.1.5"),
                 mock.Mock(returncode=0),
                 mock.Mock(returncode=1, stdout=output),
             ]
-            with mock.patch("sys.argv", ["check_tidy", "--build", str(build)]), \
-                    mock.patch.object(check_tidy.subprocess, "run", side_effect=responses), \
-                    mock.patch("builtins.print") as printed, \
-                    mock.patch("sys.stderr", new_callable=io.StringIO) as errors:
+
+            with (
+                mock.patch("sys.argv", ["check_tidy", "--build", str(build)]),
+                mock.patch.object(check_tidy.subprocess, "run", side_effect=responses),
+                mock.patch("builtins.print") as printed,
+                mock.patch("sys.stderr", new_callable=io.StringIO) as errors,
+            ):
                 with self.assertRaises(SystemExit) as failure:
                     check_tidy.main()
+
             self.assertEqual(failure.exception.code, 1)
             self.assertIn("clang-tidy failed", errors.getvalue())
             self.assertIn(output, (build / "clang-tidy.log").read_text(encoding="utf-8"))
@@ -61,10 +73,18 @@ class TranslationUnitSelectionTests(unittest.TestCase):
     def test_header_filter_accepts_both_separator_styles_and_excludes_dependencies(self):
         root = Path(__file__).resolve().parents[2]
         pattern = check_tidy.header_filter(root)
+
         for separator in ("/", "\\"):
             with self.subTest(separator=separator):
-                header = (root / "include/pipeforge/application.hpp").as_posix().replace("/", separator)
-                dependency = (root / "build/_deps/other/include/pipeforge/other.hpp").as_posix().replace("/", separator)
+                header = (
+                    (root / "include/pipeforge/application.hpp").as_posix().replace("/", separator)
+                )
+                dependency = (
+                    (root / "build/_deps/other/include/pipeforge/other.hpp")
+                    .as_posix()
+                    .replace("/", separator)
+                )
+
                 self.assertIsNotNone(re.search(pattern, header))
                 self.assertIsNone(re.search(pattern, dependency))
 
@@ -79,22 +99,34 @@ class TranslationUnitSelectionTests(unittest.TestCase):
                 {"file": "tests/unit/application_tests.cpp", "directory": str(root)},
                 {"file": "benchmarks/protocol_benchmark.cpp", "directory": str(root)},
             ]
+
             self.assertEqual(
                 check_tidy.translation_units(database, root),
-                sorted((source, root / "apps/client/main.cpp", root / "tests/unit/application_tests.cpp",
-                        root / "benchmarks/protocol_benchmark.cpp")),
+                sorted(
+                    (
+                        source,
+                        root / "apps/client/main.cpp",
+                        root / "tests/unit/application_tests.cpp",
+                        root / "benchmarks/protocol_benchmark.cpp",
+                    )
+                ),
             )
 
     def test_upstream_legacy_generated_and_external_sources_are_excluded(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             database = [
-                {"file": source, "directory": str(root)} for source in (
-                    "build/_deps/googletest-src/src/gtest-all.cc", "build/generated/message.pb.cc",
-                    "Client/Client.cpp", "Server/Server.cpp", "include/pipeforge/application.hpp",
+                {"file": source, "directory": str(root)}
+                for source in (
+                    "build/_deps/googletest-src/src/gtest-all.cc",
+                    "build/generated/message.pb.cc",
+                    "Client/Client.cpp",
+                    "Server/Server.cpp",
+                    "include/pipeforge/application.hpp",
                     "../external/src/other.cpp",
                 )
             ]
+
             self.assertEqual(check_tidy.translation_units(database, root), [])
 
 

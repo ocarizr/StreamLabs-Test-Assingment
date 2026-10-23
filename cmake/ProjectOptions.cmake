@@ -1,13 +1,18 @@
 # Apply strict flags only to code maintained in this repository.
 function(pipeforge_project_options target)
     target_compile_features(${target} PUBLIC cxx_std_20)
+
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc /utf-8)
+
         if(PIPEFORGE_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE /WX)
         endif()
     else()
-        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
+        target_compile_options(
+            ${target} PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion
+        )
+
         if(PIPEFORGE_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE -Werror)
         endif()

@@ -19,6 +19,8 @@ def main():
     parser.add_argument("--cmake", required=True)
     arguments = parser.parse_args()
     tag = f"V{arguments.version}"
+
+    # Install and validate all three distributions in a fresh directory.
     with tempfile.TemporaryDirectory(prefix="pipeforge-e2e-") as temporary:
         output = Path(temporary)
         release.package_runtime(arguments.build.resolve(), output, tag, arguments.cmake)
