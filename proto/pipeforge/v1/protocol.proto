@@ -9,6 +9,7 @@ enum ValueKind {
   INTEGER = 2;
   REAL = 3;
 }
+
 enum ErrorCode {
   ERROR_CODE_UNSPECIFIED = 0;
   INVALID_REQUEST = 1;
@@ -22,6 +23,7 @@ enum ErrorCode {
   UNSUPPORTED_VERSION = 9;
   NUMERIC_OVERFLOW = 10;
 }
+
 message Value {
   oneof data {
     string text = 1;
@@ -29,88 +31,110 @@ message Value {
     double real = 3;
   }
 }
+
 message NamedValue {
   string name = 1;
   Value value = 2;
 }
+
 message ValueRecord {
   uint64 id = 1;
   Value value = 2;
 }
+
 message Parameter {
   string name = 1;
   ValueKind kind = 2;
 }
+
 message Attribute {
   string name = 1;
   ValueKind kind = 2;
   bool read_only = 3;
 }
+
 message Method {
   string name = 1;
   repeated Parameter parameters = 2;
   ValueKind result_kind = 3;
 }
+
 message ClassDescription {
   string name = 1;
   repeated Attribute attributes = 2;
   repeated Method methods = 3;
   repeated Parameter constructor_parameters = 4;
 }
+
 message ObjectSnapshot {
   uint64 id = 1;
   string class_name = 2;
   repeated NamedValue state = 3;
 }
+
 message ListClasses {
   string after = 1;
   uint32 limit = 2;
 }
+
 message DescribeClass {
   string name = 1;
 }
+
 message PutValue {
   Value value = 1;
 }
+
 message GetValue {
   uint64 id = 1;
 }
+
 message ListValues {
   uint64 after = 1;
   uint32 limit = 2;
 }
+
 message CreateObject {
   string class_name = 1;
   repeated NamedValue arguments = 2;
 }
+
 message GetObject {
   uint64 id = 1;
 }
+
 message ReleaseObject {
   uint64 id = 1;
 }
+
 message GetAttribute {
   uint64 id = 1;
   string name = 2;
 }
+
 message InvokeMethod {
   uint64 id = 1;
   string name = 2;
   repeated NamedValue arguments = 3;
 }
+
 message ClassesPage {
   repeated string names = 1;
   string next = 2;
 }
+
 message ValuesPage {
   repeated ValueRecord values = 1;
   uint64 next = 2;
 }
+
 message Released {}
+
 message RemoteError {
   ErrorCode code = 1;
   string message = 2;
 }
+
 message Request {
   optional uint32 version = 1;
   uint64 request_id = 2;
@@ -127,6 +151,7 @@ message Request {
     InvokeMethod invoke_method = 19;
   }
 }
+
 message Response {
   optional uint32 version = 1;
   uint64 request_id = 2;

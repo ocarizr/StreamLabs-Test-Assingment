@@ -8,7 +8,7 @@ import subprocess
 
 
 def translation_units(database: list[dict], root: Path) -> list[Path]:
-    """Select/deduplicate project sources, excluding legacy and generated trees."""
+    """Select/deduplicate project sources, excluding third-party and generated trees."""
     selected = set()
     for entry in database:
         source = Path(entry["file"])

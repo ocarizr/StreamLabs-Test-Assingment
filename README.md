@@ -31,7 +31,7 @@ NamedPipe is the only hard requirement for the IPC
 
 M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. The executables support `--help` and `--version` with optional diagnostics; starting IPC remains unavailable until later milestones.
 
-The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
+The active implementation lives in `apps/`, `include/`, `src/` and `proto/`. The unused legacy `Client/` and `Server/` sources, Visual Studio solution and project files have been removed; historical versions remain available in Git history. Generated IDE/build outputs are not tracked.
 
 The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). Domain behavior starts in M3 and Windows named-pipe transport in M4.
 
