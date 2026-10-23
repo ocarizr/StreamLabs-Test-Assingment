@@ -1,4 +1,23 @@
 include(GoogleTest)
+if(WIN32)
+    add_executable(pipeforge-pipe-peer integration/pipe_peer.cpp)
+    target_include_directories(pipeforge-pipe-peer PRIVATE ../src/transport/windows)
+    target_link_libraries(pipeforge-pipe-peer PRIVATE pipeforge-transport)
+    pipeforge_project_options(pipeforge-pipe-peer)
+    add_executable(pipeforge-pipe-tests integration/windows_pipe_tests.cpp integration/windows_native_tests.cpp
+        integration/windows_lifecycle_tests.cpp)
+    add_dependencies(pipeforge-pipe-tests pipeforge-pipe-peer)
+    target_compile_definitions(pipeforge-pipe-tests PRIVATE PIPEFORGE_PEER_PATH="$<TARGET_FILE:pipeforge-pipe-peer>")
+    target_include_directories(pipeforge-pipe-tests PRIVATE ../src/transport/windows unit)
+    target_link_libraries(pipeforge-pipe-tests PRIVATE pipeforge-pipe-server GTest::gtest_main Advapi32)
+    pipeforge_project_options(pipeforge-pipe-tests)
+    gtest_discover_tests(pipeforge-pipe-tests DISCOVERY_TIMEOUT 30 PROPERTIES LABELS integration TIMEOUT 20)
+endif()
+add_executable(pipeforge-transport-unit-tests unit/transport_completion_tests.cpp)
+target_include_directories(pipeforge-transport-unit-tests PRIVATE ../src/transport)
+target_link_libraries(pipeforge-transport-unit-tests PRIVATE pipeforge-transport-core GTest::gtest_main)
+pipeforge_project_options(pipeforge-transport-unit-tests)
+gtest_discover_tests(pipeforge-transport-unit-tests PROPERTIES LABELS unit)
 add_library(pipeforge-fuzz-harness STATIC fuzz/protocol_fuzz.cpp)
 target_link_libraries(pipeforge-fuzz-harness PUBLIC pipeforge-protocol)
 pipeforge_project_options(pipeforge-fuzz-harness)
@@ -47,7 +66,8 @@ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 add_test(NAME sanitizer-configuration COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_SOURCE_DIR}/tests/integration/check_sanitizer_configuration.py"
     --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}"
-    --build "${CMAKE_BINARY_DIR}" --enabled "$<BOOL:${PIPEFORGE_SANITIZERS}>")
+    --build "${CMAKE_BINARY_DIR}" --enabled "$<BOOL:${PIPEFORGE_SANITIZERS}>"
+    --windows-asan "$<BOOL:${PIPEFORGE_WINDOWS_ASAN}>")
 set_tests_properties(sanitizer-configuration PROPERTIES TIMEOUT 120 LABELS integration)
 FetchContent_GetProperties(protobuf)
 FetchContent_GetProperties(absl)

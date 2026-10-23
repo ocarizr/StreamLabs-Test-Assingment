@@ -3,6 +3,7 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <system_error>
 #include <thread>
 
@@ -260,11 +261,18 @@ diagnostic_session::diagnostic_session(std::string_view application,
         return;
     }
 
+    std::optional<std::string> io_error;
     try {
         state_ = std::make_shared<diagnostic_state>(application, options);
     }
     catch (const spdlog::spdlog_ex& error) {
-        throw diagnostic_io_error(error.what());
+        io_error = error.what();
+    }
+
+    if (io_error) {
+        // Leave the native catch funclet before throwing the translated error.
+        // This also avoids clang-cl/ASan nested-unwind failures on Windows.
+        throw diagnostic_io_error(*io_error);
     }
 }
 

@@ -29,11 +29,11 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. M3 adds session-owned value/object repositories, extensible class factories, Counter/TextBuffer behavior, bounded pagination, transactional invocation and correlated in-process dispatch. The executables support `--help` and `--version` with optional diagnostics; starting IPC remains unavailable until later milestones.
+M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. M3 adds session-owned value/object repositories, extensible class factories, Counter/TextBuffer behavior, bounded pagination, transactional invocation and correlated in-process dispatch. M4 adds the secure Windows named-pipe stream and bounded host, overlapped I/O, deadlines/cancellation and native failure/lifecycle tests. The executables support `--help` and `--version` with optional diagnostics; IPC commands and future-based client calls arrive in M5.
 
 The active implementation lives in `apps/`, `include/`, `src/` and `proto/`. The unused legacy `Client/` and `Server/` sources, Visual Studio solution and project files have been removed; historical versions remain available in Git history. Generated IDE/build outputs are not tracked.
 
-The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). See [domain/services](docs/domain-services.md) and [M3 verification](docs/m3-verification.md). Windows named-pipe transport starts in M4; cross-process client behavior remains M5.
+The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). See [domain/services](docs/domain-services.md) and [M3 verification](docs/m3-verification.md). See [Windows transport](docs/windows-transport.md) and [M4 verification](docs/m4-verification.md). The full cross-process client demonstration remains M5.
 
 ## Build and test
 
@@ -52,7 +52,7 @@ The first configure acquires pinned runtime dependencies and builds the matching
 
 The [coding standards](docs/coding-standards.md) define the project's C++20 layout and Core Guidelines policy, analyzer checks, and reviewed exceptions. clang-tidy combines Clang Static Analyzer, bug-prone, CERT, ownership/bounds, and other guideline diagnostics. It detects classes of defects rather than proving that all undefined behavior or leaks are absent.
 
-Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration covers codec/service behavior, diagnostics and Git provenance. End-to-end tests cover installed distributions; named-pipe process behavior remains planned for later milestones.
+Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration covers codec/service behavior, diagnostics, Git provenance and real Windows pipes, including a separate abrupt-exit peer process. End-to-end tests cover installed distributions; named-pipe process behavior remains planned for later milestones.
 
 ## Logging and profiling
 
@@ -96,7 +96,7 @@ Pushing a version tag such as `V1.0`, `V1.0.0`, or `V1.0.1` publishes a release 
 These are explicit scope decisions for the proposed implementation:
 
 - Windows x64 is the supported runtime. Portable domain/protocol code can also be tested on Linux; CMake alone does not make Win32 IPC portable.
-- Client and server run locally under the same Windows user without elevation. Remote clients and other users are denied by transport policy.
+- Client and server run locally under the same Windows user without elevation. Transport policy restricts access to the server token's logon SID and rejects remote clients; a separate logon of the same account is outside that allow rule.
 - Both call styles work against the same running server and endpoint. Concurrent sessions and resource use have explicit bounds.
 - Custom classes are registered by server application code at startup. Clients discover metadata, create objects, retrieve attributes, and invoke methods. Runtime upload of executable code is outside scope.
 - Storage lasts for the server process lifetime. Objects and trivial values belong to the creating session and are released on disconnect.

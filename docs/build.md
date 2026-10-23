@@ -124,4 +124,46 @@ The optional benchmark emits size/encode/decode CSV, validates round trips and h
 
 ## Current CI scope
 
-Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, static-analysis/sanitizer and protocol-fuzzing workflows, plus compiler compatibility and profiling-disabled configurations. README badges report only master push runs. Reusable workflows share plumbing. Real IPC integration, Windows transport sanitizers and Doxygen coverage remain later work. Publishing is separate and documented in [releases](releases.md).
+Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, static-analysis/sanitizer and protocol-fuzzing workflows, plus compiler compatibility and profiling-disabled configurations. README badges report only master push runs. Reusable workflows share plumbing. Real Windows pipe/security/lifecycle tests run in integration; the static-analysis workflow also runs whole-build clang-cl/ASan on Windows. Doxygen coverage remains later work. Publishing is separate and documented in [releases](releases.md).
+
+
+## Windows transport safety
+
+M4 builds the native libraries and GoogleTest pipe suite only on Windows. Endpoint
+validation and completion-policy unit tests remain portable. See the
+[transport contract](windows-transport.md) and [M4 results](m4-verification.md).
+
+Use x64 clang-cl 22+ with its matching ASan runtime (the C++ workload must include
+LLVM and sanitizer libraries):
+
+```powershell
+. ./scripts/Enter-Toolchain.ps1
+# If necessary, prepend the bin directory of your LLVM 22+ installation here.
+clang-cl --version
+$resource = clang-cl -print-resource-dir
+$env:PATH = "$resource/lib/windows;$env:PATH"
+cmake --preset windows-asan
+cmake --build --preset windows-asan
+$env:ASAN_OPTIONS = 'halt_on_error=1:alloc_dealloc_mismatch=1'
+ctest --preset windows-asan -L 'unit|integration'
+```
+
+The separate RelWithDebInfo tree instruments dependencies, protoc, generated code,
+applications and tests before any target is created. It preserves frame pointers
+and explicitly links the matching LLVM runtime because CMake invokes the linker
+directly. This development runtime is not added to Release ZIPs. MSVC's normal
+Debug/Release configurations remain supported; MSVC ASan is excluded after a
+reproduced Protobuf 36.2 static-initialization failure. No sanitizer checks or
+Protobuf instrumentation are disabled to work around it. See
+[LLVM's Windows runtime linkage](https://clang.llvm.org/docs/UsersManual.html#finding-clang-runtime-libraries).
+
+Windows ASan does not supply the Linux UBSan/leak-detection coverage. Native handle
+cleanup is additionally checked over repeated pipe lifecycles; exact-zero handle
+counts cannot be inferred from ASan. Cross-account/logon process checks require a
+manual second account and are described in the transport guide.
+
+The Windows ASan job installs official LLVM 22.1.3 using a fixed release URL and
+SHA256 (`72ca54c3b7940615776d8994c0b918a1d8c4981bdcf13b439eaa86a1bd477001`).
+The older LLVM 19 static sanitizer runtime failed captured C++ exception access in
+local testing, so Windows ASan requires LLVM 22+ and RelWithDebInfo. This constraint
+does not change normal Debug/Release or clang-tidy compiler support.
