@@ -12,8 +12,9 @@
 int main(int argc, char* argv[])
 {
     const std::span raw_arguments{argv, static_cast<std::size_t>(argc)};
+    const auto user_arguments = raw_arguments | std::views::drop(1);
     std::vector<std::string_view> arguments;
-    for (const auto* argument : raw_arguments | std::views::drop(1)) {
+    for (const auto* argument : user_arguments) {
         arguments.emplace_back(argument);
     }
 

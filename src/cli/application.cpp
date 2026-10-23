@@ -66,9 +66,11 @@ int run_application(std::string_view name,
         return 2;
     }
 
-    if (!profiling_enabled && !options.trace_file.empty()) {
-        errors << "Profiling is disabled in this build.\n";
-        return 2;
+    if constexpr (!profiling_enabled) {
+        if (!options.trace_file.empty()) {
+            errors << "Profiling is disabled in this build.\n";
+            return 2;
+        }
     }
 
     try {

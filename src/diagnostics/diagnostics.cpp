@@ -104,19 +104,22 @@ class diagnostic_state {
             log_->set_level(spdlog::level::debug);
         }
 
-        if (profiling_enabled && !options.trace_file.empty()) {
-            const auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-                options.trace_file.native(), true);
-            trace_ = std::make_shared<spdlog::logger>(std::string(application) + ".profile", sink);
-            configure_errors(trace_);
-            trace_->set_pattern("%v");
-            trace_->info("{}", "{\"traceEvents\":[");
-            write_event({{"name", "process_name"},
-                         {"ph", "M"},
-                         {"pid", process_id()},
-                         {"tid", 0},
-                         {"args", {{"name", application}}}});
-            trace_enabled_ = true;
+        if constexpr (profiling_enabled) {
+            if (!options.trace_file.empty()) {
+                const auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+                    options.trace_file.native(), true);
+                trace_ =
+                    std::make_shared<spdlog::logger>(std::string(application) + ".profile", sink);
+                configure_errors(trace_);
+                trace_->set_pattern("%v");
+                trace_->info("{}", "{\"traceEvents\":[");
+                write_event({{"name", "process_name"},
+                             {"ph", "M"},
+                             {"pid", process_id()},
+                             {"tid", 0},
+                             {"args", {{"name", application}}}});
+                trace_enabled_ = true;
+            }
         }
     }
 

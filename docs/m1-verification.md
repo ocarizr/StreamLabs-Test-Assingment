@@ -44,8 +44,19 @@ The integrated formatting command applies/checks one empty line after completed 
 
 Example outputs are reproducible through [diagnostic usage](diagnostics.md); local examples live under ignored `build/examples/`. No release or tag was published by this work.
 
+## PR #3 CI corrections
+
+The first [PR #3](https://github.com/ocarizr/StreamLabs-Test-Assingment/pull/3) runs at commit `153a2aed78d6db21e8e619a1e9cf798c69d82a5a` exposed two compilation issues before tests could run:
+
+- Windows MSVC 19.44 rejected constant profiling conditions with C4127 under `/WX`. This blocked component builds and the unit/integration/end-to-end jobs; the disabled build also reported it in the diagnostic backend. Compile-time `if constexpr` now selects profiling support before evaluating runtime paths.
+- GCC rejected the temporary ranges expression in both entry points with `-Wdangling-reference`. Naming the argument view gives it an explicit lifetime through iteration. The strict warning policy remains enabled.
+
+The original clang-tidy job passed; its large warning totals came from diagnostics excluded by the project-header/system-header filters. Complete raw logs are now preserved as an artifact, actionable output remains visible, and analyzer exit failures still block CI. Build, analysis, and defect probes have separate workflow steps. Checkout and the diagnostic-log upload now use pinned Node 24 Actions, addressing the observed checkout Node 20 deprecation warning.
+
+Local reproduction uses MSVC 19.44/Visual Studio 2022, matching the failing Windows runner generation: clean Debug passes all 25 entries, Release all 26 including isolated ZIP execution, and profiling-off passes 18 applicable entries with seven trace-only cases skipped. Independent client/server targets also build and start in Debug and Release with `BUILD_TESTING=OFF`. clang-cl 19 and 22 each build and pass 25 entries; matching clang-tidy 19.1.5 and 22.1.3 each check all eight translation units and pass all four defect probes. The LLVM 19 run reproduces the excluded-header totals in the retained raw log while emitting no project findings. The Python tool suite passes 20 cases, including raw-output retention, diagnostic visibility, and nonzero analyzer exit propagation. Formatting and actionlint checks pass.
+
 ## Remaining verification limits
 
-The workflows have been linted locally but have not run on GitHub. The Linux job awaits remote execution; no local Linux environment is installed. Publication itself awaits a user push of a supported tag on master history. Local ZIP startup testing checks the available Windows installation, not every possible target host.
+The initial workflows ran on GitHub; the corrections above await a new commit/push and fresh PR checks. The Linux compilation failure has been addressed in source, but Linux execution and sanitizer results still require the remote rerun; no local Linux environment is installed. Publication itself awaits a user push of a supported tag on master history. Local ZIP startup testing checks the available Windows installation, not every possible target host.
 
 The Linux ASan/UBSan/leak-detection configuration is implemented but awaits Linux CI execution. Static analysis is not proof that all undefined behavior or leaks are absent. Named-pipe connection, protocol serialization, Windows transport sanitizer coverage, fuzzing, and generated API documentation remain later work. The retained legacy sources were not executed and are not included in the new build or packages.

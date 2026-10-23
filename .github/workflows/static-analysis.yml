@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Configure and build with the matching Windows Clang toolchain
@@ -22,15 +22,31 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset windows-clang
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Analyze maintained code with warnings as errors
+        shell: pwsh
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
           python scripts/check_tidy.py --build build/windows-clang
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify defect detection probes
+        shell: pwsh
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
           python scripts/check_analysis_probes.py --clang-tidy clang-tidy
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve complete analyzer output including excluded header totals
+        if: ${{ always() && hashFiles('build/windows-clang/clang-tidy.log') != '' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: clang-tidy-log
+          path: build/windows-clang/clang-tidy.log
+          retention-days: 14
+          if-no-files-found: error
   sanitizers:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Build and test maintained code under ASan, UBSan, and leak detection
