@@ -2,7 +2,7 @@
 
 Status: M0 and M1 implemented; M2-M6 planned. Updated: 2026-10-23.
 
-M1 establishes the CMake build, minimal separate executables, GoogleTest/CTest harness, formatting, initial validation workflows, and tag-only release packaging. The protocol, domain, and named-pipe application behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. These decisions replace the legacy design choices and assumptions. See [build instructions](build.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
+M1 establishes the CMake build, minimal separate executables, GoogleTest/CTest harness, explicit formatting and Core Guidelines policy, clang-tidy, Linux ASan/UBSan/leak detection, independent suite workflows/master badges, and tag-only release packaging. Protocol, domain, and named-pipe behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
 
 ## 1. Source-review findings
 
@@ -175,7 +175,7 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
-M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, formatting, and release package smoke tests. The remaining analysis, sanitizer, fuzzing, transport, and documentation jobs in the table are planned, not present checks. M1 does not use a dependency cache; cache keys above apply when caching is introduced.
+M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, explicit formatting, clang-tidy/analyzer activation probes, Linux ASan/UBSan with leak detection, and isolated release-package end-to-end tests. Independent workflows expose client/server build, formatting, unit, integration, end-to-end, and analysis statuses filtered to master pushes. TSan, Windows sanitizer/transport coverage, fuzzing, and documentation generation remain planned. M1 does not use a dependency cache; cache keys above apply when caching is introduced.
 
 ### Release publishing (added to M1)
 
@@ -194,7 +194,7 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | Milestone | Work and test-first focus | Exit criteria |
 | --- | --- | --- |
 | M0: planning (complete) | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope. |
-| M1: build and test harness (implemented) | Root CMake/presets, pinned GoogleTest acquisition, separate executable scaffolds, CTest, warnings, formatting, initial build CI, tag-only release validation/packaging/publishing workflow. Retire solution/project build entry points; untrack generated `.vs`, `Debug`, and `VS Build` outputs. | Clean-source build/test without an IDE; generated outputs untracked; three runtime ZIPs pass extraction smoke tests. Remote CI/publication awaits a push. No IPC feature parity claimed. |
+| M1: build and test harness (implemented) | Root CMake/presets, pinned GoogleTest, executable scaffolds, labeled CTest suites, explicit C++ style/Core Guidelines policy, clang-tidy, Linux ASan/UBSan/leak checks, independent master status badges, and tag-only release publishing. Retire solution/project entry points and untrack generated outputs. | Clean-source build/test without an IDE; no tracked output; static checks/probes and isolated ZIP tests pass locally where supported. Remote CI/Linux instrumentation/publication await a push. No IPC parity claimed. |
 | M2: protocol | Version-1 `.proto` schemas and typed errors; malformed-input/framing tests before implementation; official pinned Protobuf/protoc integration, static `pipeforge-protocol` library linked by both consumers, tidy, sanitizers, fuzz harness, representative size/performance baseline. | Bounded parsing and semantic validation pass; clean parallel generation and both consumer links succeed; protocol tests and fuzz smoke pass; measurements documented without assumed speedups. |
 | M3: domain/services | Typed repositories, registry/factories/metadata, Counter and second test type, object lifecycle, dispatcher. | In-process R3/R4/R6/R7/R8 tests, including ownership/quota failures. |
 | M4: Windows IPC | RAII wrappers, DACL, framing, overlapped accept/read/write, deadlines, cancellation, bounded sessions, shutdown. | Real transport/failure tests and pending-operation cleanup pass under ASan. |

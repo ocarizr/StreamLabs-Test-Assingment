@@ -1,0 +1,36 @@
+name: Reusable test suite
+
+on:
+  workflow_call:
+    inputs:
+      label:
+        required: true
+        type: string
+      preset:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build and run only the selected CTest suite
+        shell: pwsh
+        env:
+          TEST_LABEL: ${{ inputs.label }}
+          TEST_PRESET: ${{ inputs.preset }}
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
+          cmake --preset $env:TEST_PRESET
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build --preset $env:TEST_PRESET
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --preset $env:TEST_PRESET -L $env:TEST_LABEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

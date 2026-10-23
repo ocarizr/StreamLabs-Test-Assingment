@@ -16,6 +16,11 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(PIPEFORGE_WARNINGS_AS_ERRORS "Treat maintained project warnings as errors" ON)
+option(PIPEFORGE_SANITIZERS "Enable ASan/UBSan (including supported leak detection)" OFF)
+if(PIPEFORGE_SANITIZERS AND
+    (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$"))
+    message(FATAL_ERROR "The combined sanitizer configuration requires GCC/Clang on Linux")
+endif()
 
 include(CTest)
 include(cmake/ProjectOptions.cmake)
@@ -43,4 +48,12 @@ if(Python3_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/check_format.py"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Checking maintained C++ files with clang-format 19.1.5")
+    find_program(PIPEFORGE_CLANG_TIDY NAMES clang-tidy clang-tidy-19)
+    if(PIPEFORGE_CLANG_TIDY)
+        add_custom_target(static-analysis
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/check_tidy.py"
+                --build "${CMAKE_BINARY_DIR}" --clang-tidy "${PIPEFORGE_CLANG_TIDY}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            COMMENT "Checking maintained C++ code with clang-tidy")
+    endif()
 endif()

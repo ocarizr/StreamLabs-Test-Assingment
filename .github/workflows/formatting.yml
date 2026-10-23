@@ -1,0 +1,21 @@
+name: Formatting
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  formatting:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install fixed formatting tool
+        run: |
+          python3 -m venv .tools/format-venv
+          .tools/format-venv/bin/python -m pip install clang-format==19.1.5
+      - name: Check all maintained C++ formatting
+        run: python3 scripts/check_format.py --clang-format .tools/format-venv/bin/clang-format

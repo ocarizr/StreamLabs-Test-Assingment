@@ -1,4 +1,4 @@
-name: Build and test
+name: Compiler compatibility
 
 on:
   pull_request:
@@ -39,30 +39,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --preset $env:BUILD_PRESET
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Package and test standalone runtimes
-        if: matrix.preset == 'windows-release'
-        shell: pwsh
-        run: |
-          . ./scripts/Enter-Toolchain.ps1
-          python scripts/release.py package --build build/windows-release --tag V0.1.0
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/release.py smoke --tag V0.1.0
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   linux:
-    name: Portable build and formatting
+    name: Portable build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-      - name: Install fixed formatting tool
-        run: |
-          python3 -m venv .tools/format-venv
-          .tools/format-venv/bin/python -m pip install clang-format==19.1.5
-      - name: Check formatting
-        run: python3 scripts/check_format.py --clang-format .tools/format-venv/bin/clang-format
       - name: Configure, build, and test portable scaffold
         run: |
           cmake --version

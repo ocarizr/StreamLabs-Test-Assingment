@@ -2,11 +2,13 @@
 #include "pipeforge/version.hpp"
 
 #include <array>
-#include <gtest/gtest.h>
 #include <sstream>
 
+#include <gtest/gtest.h>
+
 namespace {
-TEST(Application, ReportsBuildVersion) {
+TEST(Application, ReportsBuildVersion)
+{
     std::ostringstream output;
     std::ostringstream errors;
     const std::array arguments{std::string_view{"--version"}};
@@ -15,7 +17,8 @@ TEST(Application, ReportsBuildVersion) {
     EXPECT_TRUE(errors.str().empty());
 }
 
-TEST(Application, HelpExplainsCurrentFeatureBoundary) {
+TEST(Application, HelpExplainsCurrentFeatureBoundary)
+{
     std::ostringstream output;
     std::ostringstream errors;
     const std::array arguments{std::string_view{"--help"}};
@@ -25,7 +28,8 @@ TEST(Application, HelpExplainsCurrentFeatureBoundary) {
     EXPECT_TRUE(errors.str().empty());
 }
 
-TEST(Application, NoArgumentsDoesNotPretendToStartIPC) {
+TEST(Application, NoArgumentsDoesNotPretendToStartIPC)
+{
     std::ostringstream output;
     std::ostringstream errors;
     EXPECT_EQ(pipeforge::run_application("pipeforge-server", {}, output, errors), 2);
@@ -33,7 +37,8 @@ TEST(Application, NoArgumentsDoesNotPretendToStartIPC) {
     EXPECT_NE(errors.str().find("IPC is not implemented"), std::string::npos);
 }
 
-TEST(Application, RejectsUnknownOption) {
+TEST(Application, RejectsUnknownOption)
+{
     std::ostringstream output;
     std::ostringstream errors;
     const std::array arguments{std::string_view{"--connect"}};
@@ -42,7 +47,8 @@ TEST(Application, RejectsUnknownOption) {
     EXPECT_NE(errors.str().find("Unsupported arguments"), std::string::npos);
 }
 
-TEST(Application, RejectsExtraArgumentsEvenAfterHelp) {
+TEST(Application, RejectsExtraArgumentsEvenAfterHelp)
+{
     std::ostringstream output;
     std::ostringstream errors;
     const std::array arguments{std::string_view{"--help"}, std::string_view{"unexpected"}};

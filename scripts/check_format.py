@@ -23,6 +23,7 @@ def main() -> None:
     )
     if not sources:
         parser.error("no maintained C++ sources found")
+    sources.append(root / "cmake/version.hpp.in")
     subprocess.run(
         [arguments.clang_format, "--dry-run", "--Werror", *map(str, sources)], check=True
     )

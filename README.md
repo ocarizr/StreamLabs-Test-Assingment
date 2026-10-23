@@ -1,6 +1,16 @@
 # PipeForge
 
+[![Client build](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-client.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-client.yml?query=branch%3Amaster+event%3Apush)
+[![Server build](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-server.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-server.yml?query=branch%3Amaster+event%3Apush)
+[![Formatting](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/formatting.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/formatting.yml?query=branch%3Amaster+event%3Apush)
+[![Unit tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/unit-tests.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/unit-tests.yml?query=branch%3Amaster+event%3Apush)
+[![Integration tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/integration-tests.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/integration-tests.yml?query=branch%3Amaster+event%3Apush)
+[![End-to-end tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/end-to-end.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/end-to-end.yml?query=branch%3Amaster+event%3Apush)
+[![Static analysis and sanitizers](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/static-analysis.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/static-analysis.yml?query=branch%3Amaster+event%3Apush)
+
 PipeForge is a C++ client/server project for typed interprocess communication and server-side object interaction over Windows named pipes.
+
+Badges report only `push` runs on `master`; they do not report pull-request or feature-branch results. Each links to its own validation workflow. They acquire a status after those workflows first run on master. URLs use the current Git remote and should be updated when the repository is renamed.
 
 ## Requirements
 
@@ -19,7 +29,7 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, formatting checks, initial GitHub Actions validation, and tag-triggered release packaging. The executables support `--help` and `--version`; starting IPC is deliberately unavailable until the later implementation milestones.
+M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, explicit formatting rules, clang-tidy analysis, Linux ASan/UBSan with leak detection, separate CI test suites, and tag-triggered release packaging. The executables support `--help` and `--version`; starting IPC is deliberately unavailable until the later implementation milestones.
 
 The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
 
@@ -39,6 +49,10 @@ ctest --preset windows-debug
 ```
 
 The first test-enabled configure downloads pinned GoogleTest sources. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable scaffold can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5.
+
+The [coding standards](docs/coding-standards.md) define the project's C++20 layout and Core Guidelines policy, analyzer checks, and reviewed exceptions. clang-tidy combines Clang Static Analyzer, bug-prone, CERT, ownership/bounds, and other guideline diagnostics. It detects classes of defects rather than proving that all undefined behavior or leaks are absent.
+
+Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration/end-to-end badges currently cover the scaffold and distribution, not the named-pipe behavior planned for later milestones.
 
 ## Design choices
 

@@ -1,0 +1,13 @@
+name: End-to-end tests
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  end-to-end:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      label: end-to-end
+      preset: windows-release
