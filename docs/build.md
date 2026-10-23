@@ -47,11 +47,11 @@ For an offline configure, prepopulate that exact checkout and use:
 cmake --preset windows-debug "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=C:/deps/googletest"
 ```
 
-Runtime sources must also be prepopulated for a fully offline configure: pass `-DFETCHCONTENT_SOURCE_DIR_SPDLOG=C:/deps/spdlog` and `-DFETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON=C:/deps/json`, each at its pinned revision. No unversioned system runtime dependency is silently selected.
+Runtime sources must also be prepopulated for a fully offline configure: pass `-DFETCHCONTENT_SOURCE_DIR_SPDLOG=C:/deps/spdlog`, `-DFETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON=C:/deps/json`, `-DFETCHCONTENT_SOURCE_DIR_ABSL=C:/deps/abseil` and `-DFETCHCONTENT_SOURCE_DIR_PROTOBUF=C:/deps/protobuf`, each at its pinned revision. No unversioned system runtime dependency is silently selected. M2 builds official protoc 36.2 and its static full runtime, compatible Abseil and bundled utf8_range; see exact revisions/archive hashes in the notices document.
 
 The offline source override is explicit and must match the pinned revision; it bypasses FetchContent acquisition. A previously populated build can be configured with `-DFETCHCONTENT_UPDATES_DISCONNECTED=ON`. New CI builds acquire the pinned sources directly; no cross-toolchain binary cache is used in M1. A future dependency cache must include compiler, runtime, architecture, and dependency revisions in its key.
 
-Application-only builds can use `-DBUILD_TESTING=OFF` and do not fetch GoogleTest or require Python to compile. They still build the runtime diagnostic dependencies. Python remains necessary for formatting and release tooling. Protobuf and its transitive dependency graph remain M2 work; JSON here is used only for diagnostic trace files.
+Application-only builds can use `-DBUILD_TESTING=OFF` and do not fetch GoogleTest or require Python to compile. They still build diagnostics, Protobuf and protoc for schema generation. Python remains necessary for quality/release tooling. Generated files stay under `generated/wire` in the build tree. JSON is used for traces and a benchmark-only size reference, never IPC.
 
 ## Formatting and tests
 
@@ -62,7 +62,7 @@ cmake --build build/windows-debug --target format-check
 python -m unittest discover -s tests/tools -v
 ```
 
-The format script rejects a different tool version and checks maintained sources under `apps`, `include`, `src`, and `tests/unit`, plus `cmake/version.hpp.in`. It combines clang-format with a lexical blank-line rule after complete braced control blocks; `--fix` applies both policies. Functions are separated by clang-format's definition-block policy. Upstream/generated output and archived `Client`/`Server` snapshots are excluded. The CMake target is available when Python is discoverable. See [coding standards](coding-standards.md).
+The format script rejects a different tool version and checks maintained sources under `apps`, `include`, `src`, `tests` and `benchmarks`, schemas under `proto`, and `cmake/version.hpp.in`. C++ uses the house style and schemas use a two-space Protobuf style. It combines clang-format with a lexical blank-line rule after complete braced control blocks; `--fix` applies both policies. Functions are separated by clang-format's definition-block policy. Upstream/generated output and archived `Client`/`Server` snapshots are excluded. The CMake target is available when Python is discoverable. See [coding standards](coding-standards.md).
 
 CTest separates unit behavior from process/Git integration and isolated package end-to-end validation. Release provenance tests create temporary Git repositories; they never change this project's history. CTest fails if no matching tests are discovered and applies time limits.
 
@@ -90,15 +90,38 @@ Use a matching clang-cl/clang-tidy/SDK environment. The analysis script supports
 On Linux, the runtime safety configuration is:
 
 ```sh
-cmake --preset linux-debug -DPIPEFORGE_SANITIZERS=ON
+cmake --preset linux-debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DPIPEFORGE_SANITIZERS=ON
 cmake --build --preset linux-debug
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --preset linux-debug -L 'unit|integration'
 ```
 
-The combined sanitizer option is intentionally rejected on Windows and unsupported compilers. Linux instrumentation does not cover Win32 named-pipe code. See the coding standards for check coverage and exceptions.
+The combined sanitizer option requires Linux Clang. GCC remains covered by the normal compiler-compatibility build; GCC/UBSan cannot compile the pinned Abseil constexpr hash policy ([upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634)). Sanitizer compile/link options apply before any targets are created, including Protobuf, libprotoc/protoc, Abseil, UTF-8, logging and test dependencies. Protobuf 36.2 changes its message layout under ASan, so mixing instrumented and uninstrumented consumers is incompatible. No sanitizer checks are disabled. Linux instrumentation does not cover Win32 named-pipe code. See the coding standards for check coverage and exceptions.
 
 Windows builds use the static MSVC CRT consistently across application and test libraries. Runtime ZIPs contain executables plus `THIRD-PARTY-NOTICES.txt`; spdlog/fmt/JSON are statically linked and add no runtime DLLs. A later dynamic dependency must extend the installation/manifest and isolated extraction tests. [Diagnostic options](diagnostics.md) document logs, profiling macros, lifecycle, and `PIPEFORGE_ENABLE_PROFILING=OFF`.
 
+## Protocol fuzzing and measurements
+
+Normal CTest builds include a deterministic 512-mutation smoke using the shared invariant harness. For coverage-guided fuzzing in a separate Linux Clang configuration:
+
+```sh
+cmake -S . -B build/linux-fuzz -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
+  -DPIPEFORGE_SANITIZERS=ON -DPIPEFORGE_BUILD_FUZZER=ON
+cmake --build build/linux-fuzz --target pipeforge-protocol-fuzzer --parallel 3
+python3 scripts/prepare_fuzz_corpus.py --output build/fuzz-corpus
+./build/linux-fuzz/tests/pipeforge-protocol-fuzzer build/fuzz-corpus -max_total_time=30 -max_len=1048580
+```
+
+The fuzz option requires Linux Clang, testing enabled and sanitizers. CI uses bounded concurrency, time/RSS/input limits and artifacts; the weekly run lasts 600 seconds. The regular sanitizer job runs unit/integration tests independently.
+
+```powershell
+cmake --preset windows-release -DPIPEFORGE_BUILD_BENCHMARKS=ON
+cmake --build --preset windows-release --target pipeforge-protocol-benchmark
+./build/windows-release/pipeforge-protocol-benchmark.exe
+```
+
+The optional benchmark emits size/encode/decode CSV, validates round trips and has no performance thresholds. The static-analysis workflow also compiles/analyzes it. See the [protocol guide](protocol.md) and [M2 verification record](m2-verification.md). First builds compile a substantial upstream compiler/runtime graph; jobs allow longer timeouts and cap build parallelism at three to limit memory use.
+
 ## Current CI scope
 
-Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, and static-analysis/sanitizer workflows, plus a compiler compatibility matrix and a profiling-disabled unit/integration configuration. README badges report only master push runs, not PR results. Reusable workflows share component-build and test-suite plumbing. Fuzzing, real IPC integration, Windows transport sanitizers, and Doxygen coverage remain later work. Release publishing is separate and documented in [releases](releases.md).
+Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, static-analysis/sanitizer and protocol-fuzzing workflows, plus compiler compatibility and profiling-disabled configurations. README badges report only master push runs. Reusable workflows share plumbing. Real IPC integration, Windows transport sanitizers and Doxygen coverage remain later work. Publishing is separate and documented in [releases](releases.md).

@@ -16,7 +16,7 @@ Headers use conventional, project-prefixed include guards rather than non-standa
 
 Prefer RAII, scoped values, standard containers, bounded views, and explicit error contracts. Avoid owning raw pointers, unchecked pointer arithmetic, casts that discard type safety, uninitialized values, and implicit narrowing. Separate wire data, domain ownership, and I/O. Use narrow exception translation for throwing I/O operations that can be recovered or reported; do not wrap ordinary status-returning APIs in catch-all helpers.
 
-The formatter runs with clang-format 19.1.5 and checks maintained C++ files and the generated-version header template. clang-tidy enforces braces and naming as well as semantic rules. Formatting alone does not enforce SOLID, contracts, thread safety, ownership, or all Core Guidelines.
+The formatter runs with clang-format 19.1.5 and checks maintained C++ files, the generated-version header template and `.proto` schemas (two-space Google Proto style). clang-tidy enforces braces and naming as well as semantic rules. Formatting alone does not enforce SOLID, contracts, thread safety, ownership, or all Core Guidelines.
 
 Use one empty line after a complete braced `if`/`else`, loop, `switch`, or `try`/`catch` chain before subsequent code or commentary. Keep branch continuations together and do not add an empty line before an enclosing closing brace. Function definitions are separated by one empty line. clang-format preserves these gaps but has no general control-block gap insertion option in version 19; `scripts/control_spacing.py` complements it using masked tokens, excluding literals/comments/preprocessor definitions. `python scripts/check_format.py --fix` applies both rules, and the same script without `--fix` validates them in CI. Tests cover chains, loops, nested closes, raw strings, macro definitions, and idempotence.
 
@@ -47,11 +47,13 @@ Reviewed exceptions:
 - The two C++ entry points locally suppress only `bugprone-exception-escape`. Fatal allocation failures during startup remain fatal rather than adding blanket exception recovery; recoverable throwing I/O still belongs at the I/O adapter. Bounds/ownership/analyzer checks remain enabled for those functions.
 - Diagnostic RAII destructors use the same narrow exception-escape exception for unrecoverable allocation exhaustion. spdlog reports file write/flush errors through the session flag; `finish()` must be checked. Profiling macros locally exempt only `cppcoreguidelines-macro-usage` because they must capture lexical scope/function. Other checks remain active.
 
+Protocol binary fixtures locally exempt magic-number warnings; the deterministic regression mutator locally exempts fixed-seed randomness checks because reproducibility is its purpose, not a security source. No production randomness policy is weakened. Benchmark/fuzz entry points use the fatal-allocation policy of other process entry points. Narrow pinned-upstream compiler exceptions are listed in [M2 verification](m2-verification.md); maintained code retains its checks.
+
 Any additional exception needs a narrow named-check suppression with a reason and review. Do not disable an entire family to make a build green.
 
 ## Runtime safety
 
-The Linux sanitizer job instruments maintained application/test code with AddressSanitizer and UndefinedBehaviorSanitizer, enables leak detection, and stops on the first finding. It runs unit and integration labels. GoogleTest itself is not instrumented in this initial configuration. No claim is made that Windows named-pipe operations are covered by this Linux job; Windows transport and sanitizer tests will be added with that implementation.
+The Linux Clang sanitizer job instruments the entire build with ASan/UBSan, including maintained code, generated messages, Protobuf, libprotoc/protoc, Abseil, UTF-8, logging and GoogleTest. Compile/link policy is shared before dependency configuration to preserve Protobuf's ASan-dependent message layout. It enables leak detection, stops on a finding and runs unit/integration labels. GCC remains in compiler-compatibility CI; its UBSan configuration is rejected because the pinned Abseil triggers [upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634). A separate libFuzzer workflow adds decoder coverage and bounded PR/master/weekly fuzzing. These Linux jobs do not cover Windows named-pipe operations; Windows transport/sanitizer tests arrive with that implementation.
 
 Static analysis and sanitizers cover different paths and classes of defects. Safe ownership, protocol limits, negative tests, and review remain necessary. Future IPC changes must add real timeout, partial-transfer, cancellation, disconnect, and shutdown tests.
 
@@ -61,8 +63,8 @@ Static analysis and sanitizers cover different paths and classes of defects. Saf
 | --- | --- |
 | Client build / Server build | Each Windows executable builds independently in Debug and Release without test dependencies. |
 | Formatting | clang-format policy for maintained code. |
-| Unit tests | CLI behavior, release version/archive rules, compilation-database selection. |
-| Integration tests | Executable CLI/diagnostic output and I/O failures, plus release provenance in isolated real Git repositories. |
+| Unit tests | Protocol semantics/framing, deterministic fuzz invariants, CLI behavior, release rules, tool selection/reporting. |
+| Integration tests | Generated-code/runtime mismatch rejection, executable diagnostics/I/O failures, release provenance in isolated Git repositories. |
 | End-to-end tests | Fresh runtime installation, three ZIPs, exact manifests/notices, isolated extraction, and startup/log/trace parsing with a system-only PATH. |
 | Static analysis and sanitizers | All maintained C++ translation units, analyzer activation probes, and Linux runtime safety checks. |
 

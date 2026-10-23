@@ -19,7 +19,7 @@ def translation_units(database: list[dict], root: Path) -> list[Path]:
             relative = source.relative_to(root.resolve())
         except ValueError:
             continue
-        if relative.parts[0] in ("apps", "src", "tests") and source.suffix in (".cpp", ".cc", ".cxx"):
+        if relative.parts[0] in ("apps", "src", "tests", "benchmarks") and source.suffix in (".cpp", ".cc", ".cxx"):
             selected.add(source)
     return sorted(selected)
 
@@ -27,7 +27,7 @@ def translation_units(database: list[dict], root: Path) -> list[Path]:
 def header_filter(root: Path) -> str:
     """Match project headers with either Clang's slash or Windows separator."""
     prefix = r"[/\\]".join(re.escape(part) for part in root.resolve().as_posix().split("/"))
-    return "^" + prefix + r"[/\\](include[/\\]pipeforge|apps|src|tests)[/\\]"
+    return "^" + prefix + r"[/\\](include[/\\]pipeforge|apps|src|tests|benchmarks)[/\\]"
 
 
 def actionable_output(output: str) -> str:

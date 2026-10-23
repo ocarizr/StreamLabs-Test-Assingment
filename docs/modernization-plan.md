@@ -1,8 +1,10 @@
 # PipeForge modernization plan
 
-Status: M0 and M1 implemented; M2-M6 planned. Updated: 2026-10-23.
+Status: M0-M2 implemented; M3-M6 planned. Updated: 2026-10-23.
 
-M1 establishes CMake, separate executables, tests/CI/master badges, C++ formatting and control-block spacing, static/runtime safety checks, spdlog logging, bounded Chrome Trace scope profiling, and tag-only release packaging. Protocol, domain, and named-pipe behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [diagnostics](diagnostics.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
+M1 establishes CMake, separate executables, tests/CI/master badges, C++ formatting and control-block spacing, static/runtime safety checks, spdlog logging, bounded Chrome Trace scope profiling, and tag-only release packaging. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [diagnostics](diagnostics.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
+
+M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ contracts, full static Protobuf runtime/compiler integration, bounded validation, incremental framing, negative/golden tests, fuzz harness and initial size/CPU measurements. Domain services and pipe I/O remain planned. Protocol code has no global logging or payload logging. Executed checks and remote-validation limits are recorded in [M2 verification](m2-verification.md).
 
 ## 1. Source-review findings
 
@@ -53,7 +55,7 @@ R7 does not specify who initiates registration or require uploading source. The 
 
 ### Components and dependencies
 
-Target layout, introduced incrementally (protocol/domain/transport remain planned):
+Target layout, introduced incrementally (domain/transport remain planned):
 
 ```text
 CMakeLists.txt / CMakePresets.json
@@ -73,7 +75,7 @@ docs/                      Architecture, protocol, usage, Doxygen
 .github/workflows/         Build, analysis, sanitizers, documentation
 ```
 
-Use `PipeForge` as the CMake project name and `pipeforge` as the public C++ namespace. The future executable targets are `pipeforge-client` and `pipeforge-server`.
+The CMake project is `PipeForge`, with public namespace `pipeforge` and executable targets `pipeforge-client` and `pipeforge-server`.
 
 Domain code has no transport/client/Win32 dependencies. Protocol code depends on value contracts; transport moves bytes without interpreting business operations. Server services depend on narrow repository contracts and the class registry. Entry points compose implementations. Client links contracts and transport, not server implementation.
 
@@ -149,7 +151,7 @@ Use target-scoped language standards, warnings, include paths, dependencies, and
 
 ### Upstream dependency integration
 
-M1 acquires GoogleTest at immutable revision `52eb8108c5bdec04579160ae17225d66034bd723` (v1.17.0), plus SHA256-verified spdlog v1.17.0 and nlohmann/json v3.12.0 archives for the diagnostic library. spdlog's fmt backend is bundled at that pinned revision. JSON serializes trace files only. Protobuf acquisition, schemas, and the protocol library remain M2 work. See [dependency notices](third-party.md).
+M1 acquires GoogleTest at immutable revision `52eb8108c5bdec04579160ae17225d66034bd723` (v1.17.0), plus SHA256-verified spdlog v1.17.0 and nlohmann/json v3.12.0 archives for diagnostics. M2 adds SHA256-verified Protobuf 36.2 and compatible Abseil 20250512.1. Matching protoc/runtime and utf8_range are built from the pinned sources; optional downloads, zlib and system-package fallback are disabled. JSON serializes trace files and a benchmark-only reference, never IPC messages. See [dependency notices](third-party.md).
 
 Use the official [protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf) and [google/googletest](https://github.com/google/googletest) implementations. Both provide CMake integration; PipeForge owns its schemas, adapters, and tests. No custom Protobuf parser, byte packer, or testing framework is planned.
 
@@ -175,7 +177,7 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
-M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, explicit formatting, clang-tidy/analyzer activation probes, Linux ASan/UBSan with leak detection, and isolated release-package end-to-end tests. Independent workflows expose client/server build, formatting, unit, integration, end-to-end, and analysis statuses filtered to master pushes. TSan, Windows sanitizer/transport coverage, fuzzing, and documentation generation remain planned. M1 does not use a dependency cache; cache keys above apply when caching is introduced.
+M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, explicit formatting, clang-tidy/analyzer activation probes, Linux ASan/UBSan with leak detection, and isolated release-package end-to-end tests. M2 extends those jobs to codecs, generated messages and Protobuf runtime instrumentation, plus compiler/runtime mismatch rejection, deterministic fuzz smoke and a bounded libFuzzer workflow. Independent workflows retain master-only status filtering. TSan, Windows sanitizer/transport coverage and documentation generation remain planned. There is no dependency binary cache; cache keys above apply if caching is introduced.
 
 ### Release publishing (added to M1)
 
@@ -194,11 +196,11 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | Milestone | Work and test-first focus | Exit criteria |
 | --- | --- | --- |
 | M0: planning (complete) | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope. |
-| M1: build and test harness (implemented) | CMake/pinned dependencies, executable scaffolds, CTest/CI/badges, explicit C++ style and control spacing, clang-tidy/Linux sanitizers, shared spdlog logging and scope profiling, tag-only release publishing. Retire IDE build entry points and tracked output. | Clean-source build/test; profiling-on/off and diagnostic lifecycle tests; static/format checks; isolated ZIP log/trace checks. Remote CI/Linux instrumentation/publication await a push. No IPC parity claimed. |
-| M2: protocol | Version-1 `.proto` schemas and typed errors; malformed-input/framing tests before implementation; official pinned Protobuf/protoc integration, static `pipeforge-protocol` library linked by both consumers, tidy, sanitizers, fuzz harness, representative size/performance baseline. | Bounded parsing and semantic validation pass; clean parallel generation and both consumer links succeed; protocol tests and fuzz smoke pass; measurements documented without assumed speedups. |
-| M3: domain/services | Typed repositories, registry/factories/metadata, Counter and second test type, object lifecycle, dispatcher. | In-process R3/R4/R6/R7/R8 tests, including ownership/quota failures. |
-| M4: Windows IPC | RAII wrappers, DACL, framing, overlapped accept/read/write, deadlines, cancellation, bounded sessions, shutdown. | Real transport/failure tests and pending-operation cleanup pass under ASan. |
-| M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI, process tests. | Separate processes satisfy R1-R8, including simultaneous mixed-style sessions; superseded legacy code removed. |
+| M1: build and test harness (implemented) | CMake/pinned dependencies, executable scaffolds, CTest/CI/badges, explicit C++ style and control spacing, clang-tidy/Linux sanitizers, shared spdlog logging and scope profiling, tag-only release publishing. Retire IDE build entry points and tracked output. | Clean-source build/test; profiling-on/off and diagnostic lifecycle tests; static/format checks; isolated ZIP log/trace checks. Merged on master; no IPC parity claimed. |
+| M2: protocol (implemented) | Version-1 schemas/contracts, all operation/outcome shapes, constructor metadata, bounded full-runtime Protobuf codec, incremental framing, malformed/golden/negative tests, compiler-version guard test, deterministic and libFuzzer harnesses, size/CPU baseline. | Local protocol/generation/consumer checks and deterministic fuzz smoke; static/format checks; Linux sanitizer/libFuzzer workflows require remote execution. See M2 verification for exact executed checks. |
+| M3: domain/services | Reuse M2's typed values, operations and metadata; bounded repositories, registry/factories, Counter and second type, object lifecycle, dispatcher; safe diagnostic IDs/categories at the service boundary. | In-process R3/R4/R6/R7/R8 tests, including ownership, quotas, duplicate registration, paging cursors and checked arithmetic without state mutation on overflow. |
+| M4: Windows IPC | RAII wrappers, DACL, overlapped accept/read/write, M2 incremental framing, deadlines, cancellation, bounded simultaneous decodes/sessions, shutdown. | Real transport/failure tests and pending-operation cleanup under ASan; distinguish fatal frame/parse failures from correlated semantic errors. |
+| M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes satisfy R1-R8, simultaneous mixed-style sessions, unexpected response IDs/outcomes fail predictably; superseded legacy code removed. |
 | M6: quality/delivery | Complete CI matrix, usage/protocol/Doxygen guides, optional publishing, dependency review, repository cleanup. | Required checks pass, documentation matches behavior, clean checkout reproduces results, limitations documented. |
 
 Each implementation work item starts on a new branch. Review the diff, run appropriate checks, stage an explicit file list, and supply a suggested commit message without committing. Exclude local settings, secrets, machine-specific output, downloaded tools, and unrelated changes.

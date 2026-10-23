@@ -29,11 +29,11 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, formatting/spacing checks, clang-tidy analysis, Linux ASan/UBSan with leak detection, spdlog logging, scope profiling, separate CI suites, and tag-triggered release packaging. The executables support `--help` and `--version` with optional diagnostic output; starting IPC is deliberately unavailable until later milestones.
+M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. The executables support `--help` and `--version` with optional diagnostics; starting IPC remains unavailable until later milestones.
 
 The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
 
-The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. Protobuf integration starts in M2, domain behavior in M3, and named-pipe transport in M4. See [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md).
+The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). Domain behavior starts in M3 and Windows named-pipe transport in M4.
 
 ## Build and test
 
@@ -48,7 +48,7 @@ ctest --preset windows-debug
 ./build/windows-debug/pipeforge-server.exe --version
 ```
 
-The first test-enabled configure downloads pinned GoogleTest sources. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable scaffold can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5.
+The first configure acquires pinned runtime dependencies and builds the matching `protoc`; test builds also acquire GoogleTest. This takes longer than the M1 build. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable core can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5 for C++ and schemas.
 
 The [coding standards](docs/coding-standards.md) define the project's C++20 layout and Core Guidelines policy, analyzer checks, and reviewed exceptions. clang-tidy combines Clang Static Analyzer, bug-prone, CERT, ownership/bounds, and other guideline diagnostics. It detects classes of defects rather than proving that all undefined behavior or leaks are absent.
 
@@ -82,7 +82,8 @@ The plan explains the architectural tradeoffs and how server-side class registra
 - [spdlog](https://github.com/gabime/spdlog), v1.17.0 at revision `79524ddd08a4ec981b7fea76afd08ee05f83755d`: static runtime logging and profiling file sinks, with bundled fmt.
 - [nlohmann/json](https://github.com/nlohmann/json), v3.12.0 at revision `65ee68451d8eb2b5f3a30b410476ab83deb3289b`: diagnostic trace serialization only.
 - [GoogleTest](https://github.com/google/googletest), v1.17.0 at revision `52eb8108c5bdec04579160ae17225d66034bd723`: test-only, built through CMake FetchContent and integrated with CTest.
-- [Protocol Buffers](https://github.com/protocolbuffers/protobuf), planned for M2: reuse official `protoc` and the C++ runtime; implement only PipeForge schemas, validation, and domain conversion.
+- [Protocol Buffers](https://github.com/protocolbuffers/protobuf), v36.2 (`424e1b0a184baa5a3c75061a1febd5f60a0a3707`): matching official `protoc` and full C++ runtime 7.36.2; bundled utf8_range validates UTF-8.
+- [Abseil](https://github.com/abseil/abseil-cpp), 20250512.1 (`76bb24329e8bf5f39704eb10d21b9a80befa7c81`): pinned Protobuf transitive dependency.
 
 Downloaded sources and generated output remain in the build directory. The plan defines version matching, transitive dependencies, and reproducibility checks. Binary serialization efficiency will be measured rather than assumed.
 

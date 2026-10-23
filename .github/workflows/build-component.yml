@@ -7,13 +7,16 @@ on:
         required: true
         type: string
 
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 3
+
 permissions:
   contents: read
 
 jobs:
   build:
     runs-on: windows-2022
-    timeout-minutes: 15
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

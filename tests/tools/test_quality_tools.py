@@ -77,10 +77,12 @@ class TranslationUnitSelectionTests(unittest.TestCase):
                 {"file": "src/cli/application.cpp", "directory": str(root)},
                 {"file": "apps/client/main.cpp", "directory": str(root)},
                 {"file": "tests/unit/application_tests.cpp", "directory": str(root)},
+                {"file": "benchmarks/protocol_benchmark.cpp", "directory": str(root)},
             ]
             self.assertEqual(
                 check_tidy.translation_units(database, root),
-                sorted((source, root / "apps/client/main.cpp", root / "tests/unit/application_tests.cpp")),
+                sorted((source, root / "apps/client/main.cpp", root / "tests/unit/application_tests.cpp",
+                        root / "benchmarks/protocol_benchmark.cpp")),
             )
 
     def test_upstream_legacy_generated_and_external_sources_are_excluded(self):
