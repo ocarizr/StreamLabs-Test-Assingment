@@ -1,10 +1,12 @@
 # PipeForge modernization plan
 
-Status: M0-M2 implemented; M3-M6 planned. Updated: 2026-10-23.
+Status: M0-M3 implemented; M4-M6 planned. Updated: 2026-10-23.
 
 M1 establishes CMake, separate executables, tests/CI/master badges, C++ formatting and control-block spacing, static/runtime safety checks, spdlog logging, bounded Chrome Trace scope profiling, and tag-only release packaging. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [diagnostics](diagnostics.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
 
-M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ contracts, full static Protobuf runtime/compiler integration, bounded validation, incremental framing, negative/golden tests, fuzz harness and initial size/CPU measurements. Domain services and pipe I/O remain planned. Protocol code has no global logging or payload logging. Executed checks and remote-validation limits are recorded in [M2 verification](m2-verification.md).
+M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ contracts, full static Protobuf runtime/compiler integration, bounded validation, incremental framing, negative/golden tests, fuzz harness and initial size/CPU measurements. Domain services are implemented in M3; pipe I/O remains planned. Protocol code has no global logging or payload logging. Executed checks and remote-validation limits are recorded in [M2 verification](m2-verification.md).
+
+M3 implements [domain/services](domain-services.md): shared contracts/validation without a codec dependency, a bounded startup registry, factories, session-owned value/object stores, Counter and TextBuffer, checked arithmetic, clone/validate/commit invocation, and a correlated dispatcher with safe optional diagnostics. In-process tests cover R3/R4/R6/R7/R8; cross-process acceptance remains M4/M5. See [M3 verification](m3-verification.md).
 
 ## 1. Source-review findings
 
@@ -55,13 +57,14 @@ R7 does not specify who initiates registration or require uploading source. The 
 
 ### Components and dependencies
 
-Target layout, introduced incrementally (domain/transport remain planned):
+Target layout, introduced incrementally (transport/client runtime remain planned):
 
 ```text
 CMakeLists.txt / CMakePresets.json
 include/pipeforge/          Public value contracts and client API
 proto/pipeforge/v1/         Versioned Protocol Buffers schemas
 src/protocol/              Serialization, framing, validation
+src/contracts/             Shared semantic validation, no codec dependency
 src/domain/                Registry, values, object store
 src/server/                Application services and request dispatch
 src/client/                Request correlation, blocking/future APIs
@@ -147,7 +150,7 @@ Use readiness/completion signals and test deadlines instead of timing-sensitive 
 
 ## 6. Build, CI, and API documentation
 
-Use target-scoped language standards, warnings, include paths, dependencies, and sanitizer flags. Provide configure/build/test presets and clean-checkout CLI instructions. Pin Protobuf, GoogleTest, and their transitive sources by revision/hash and document an offline cache path. Do not commit downloads or binaries. Export a real compilation database using Ninja/Clang for clang-tidy.
+Use target-scoped language standards, warnings, include paths and dependencies. Apply sanitizer compile/link options consistently before creating targets or dependencies to preserve Protobuf's ASan-dependent message layout. Provide configure/build/test presets and clean-checkout CLI instructions. Pin Protobuf, GoogleTest, and their transitive sources by revision/hash and document an offline cache path. Do not commit downloads or binaries. Export a real compilation database using Ninja/Clang for clang-tidy.
 
 ### Upstream dependency integration
 
@@ -177,7 +180,7 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
-M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, explicit formatting, clang-tidy/analyzer activation probes, Linux ASan/UBSan with leak detection, and isolated release-package end-to-end tests. M2 extends those jobs to codecs, generated messages and Protobuf runtime instrumentation, plus compiler/runtime mismatch rejection, deterministic fuzz smoke and a bounded libFuzzer workflow. Independent workflows retain master-only status filtering. TSan, Windows sanitizer/transport coverage and documentation generation remain planned. There is no dependency binary cache; cache keys above apply if caching is introduced.
+M1 validation covers MSVC Debug/Release, clang-cl, portable Linux scaffold tests, explicit formatting, clang-tidy/analyzer activation probes, Linux ASan/UBSan with leak detection, and isolated release-package end-to-end tests. M2 extends those jobs to codecs, generated messages and Protobuf runtime instrumentation, plus compiler/runtime mismatch rejection, deterministic fuzz smoke and a bounded libFuzzer workflow. M3 adds domain unit tests and codec/service integration under the existing labels; shared validation remains covered by decoder fuzzing. Independent workflows retain master-only status filtering. TSan, Windows sanitizer/transport coverage and documentation generation remain planned. There is no dependency binary cache; cache keys above apply if caching is introduced.
 
 ### Release publishing (added to M1)
 
@@ -198,7 +201,7 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | M0: planning (complete) | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope. |
 | M1: build and test harness (implemented) | CMake/pinned dependencies, executable scaffolds, CTest/CI/badges, explicit C++ style and control spacing, clang-tidy/Linux sanitizers, shared spdlog logging and scope profiling, tag-only release publishing. Retire IDE build entry points and tracked output. | Clean-source build/test; profiling-on/off and diagnostic lifecycle tests; static/format checks; isolated ZIP log/trace checks. Merged on master; no IPC parity claimed. |
 | M2: protocol (implemented) | Version-1 schemas/contracts, all operation/outcome shapes, constructor metadata, bounded full-runtime Protobuf codec, incremental framing, malformed/golden/negative tests, compiler-version guard test, deterministic and libFuzzer harnesses, size/CPU baseline. | Local protocol/generation/consumer checks and deterministic fuzz smoke; static/format checks; Linux sanitizer/libFuzzer workflows require remote execution. See M2 verification for exact executed checks. |
-| M3: domain/services | Reuse M2's typed values, operations and metadata; bounded repositories, registry/factories, Counter and second type, object lifecycle, dispatcher; safe diagnostic IDs/categories at the service boundary. | In-process R3/R4/R6/R7/R8 tests, including ownership, quotas, duplicate registration, paging cursors and checked arithmetic without state mutation on overflow. |
+| M3: domain/services (implemented) | Reuse M2's typed values, operations and metadata; bounded repositories, registry/factories, Counter and second type, object lifecycle, dispatcher; safe diagnostic IDs/categories at the service boundary. | In-process R3/R4/R6/R7/R8 tests, including ownership, quotas, duplicate registration, paging cursors and checked arithmetic without state mutation on overflow. Codec/service integration, lifecycle probes and safe logs/traces are covered; see M3 verification. |
 | M4: Windows IPC | RAII wrappers, DACL, overlapped accept/read/write, M2 incremental framing, deadlines, cancellation, bounded simultaneous decodes/sessions, shutdown. | Real transport/failure tests and pending-operation cleanup under ASan; distinguish fatal frame/parse failures from correlated semantic errors. |
 | M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes satisfy R1-R8, simultaneous mixed-style sessions, unexpected response IDs/outcomes fail predictably. |
 | M6: quality/delivery | Complete CI matrix, usage/protocol/Doxygen guides, optional publishing, dependency review, repository cleanup. | Required checks pass, documentation matches behavior, clean checkout reproduces results, limitations documented. |

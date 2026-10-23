@@ -1,5 +1,10 @@
 pipeforge_protocol_dependencies()
 
+add_library(pipeforge-contracts STATIC src/contracts/validation.cpp)
+target_include_directories(pipeforge-contracts PUBLIC include)
+target_link_libraries(pipeforge-contracts PRIVATE utf8_validity)
+pipeforge_project_options(pipeforge-contracts)
+
 set(protocol_schema "${CMAKE_SOURCE_DIR}/proto/pipeforge/v1/protocol.proto")
 set(protocol_generated "${CMAKE_BINARY_DIR}/generated/wire")
 file(MAKE_DIRECTORY "${protocol_generated}")
@@ -24,5 +29,5 @@ endif()
 
 add_library(pipeforge-protocol STATIC src/protocol/codec.cpp src/protocol/framing.cpp)
 target_include_directories(pipeforge-protocol PUBLIC include)
-target_link_libraries(pipeforge-protocol PRIVATE pipeforge-wire protobuf::libprotobuf utf8_validity)
+target_link_libraries(pipeforge-protocol PUBLIC pipeforge-contracts PRIVATE pipeforge-wire protobuf::libprotobuf utf8_validity)
 pipeforge_project_options(pipeforge-protocol)
