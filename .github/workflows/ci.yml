@@ -13,6 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  profiling-disabled:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      label: 'unit|integration'
+      preset: windows-debug
+      profiling: false
+
   windows:
     name: Windows / ${{ matrix.preset }}
     runs-on: windows-2022

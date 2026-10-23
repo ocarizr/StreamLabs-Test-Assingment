@@ -18,6 +18,8 @@ Prefer RAII, scoped values, standard containers, bounded views, and explicit err
 
 The formatter runs with clang-format 19.1.5 and checks maintained C++ files and the generated-version header template. clang-tidy enforces braces and naming as well as semantic rules. Formatting alone does not enforce SOLID, contracts, thread safety, ownership, or all Core Guidelines.
 
+Use one empty line after a complete braced `if`/`else`, loop, `switch`, or `try`/`catch` chain before subsequent code or commentary. Keep branch continuations together and do not add an empty line before an enclosing closing brace. Function definitions are separated by one empty line. clang-format preserves these gaps but has no general control-block gap insertion option in version 19; `scripts/control_spacing.py` complements it using masked tokens, excluding literals/comments/preprocessor definitions. `python scripts/check_format.py --fix` applies both rules, and the same script without `--fix` validates them in CI. Tests cover chains, loops, nested closes, raw strings, macro definitions, and idempotence.
+
 ## clang-tidy and static analysis
 
 `.clang-tidy` enables:
@@ -41,6 +43,7 @@ Reviewed exceptions:
 - Disable `bugprone-easily-swappable-parameters`: the CLI deliberately accepts separate output/error streams of the same type. Semantic API review and tests cover their roles.
 - Permit integer literals 0, 1, and 2 in the magic-number check: they represent common indexing/counts and the documented CLI status contract. Other meaningful constants should be named.
 - The two C++ entry points locally suppress only `bugprone-exception-escape`. Fatal allocation failures during startup remain fatal rather than adding blanket exception recovery; recoverable throwing I/O still belongs at the I/O adapter. Bounds/ownership/analyzer checks remain enabled for those functions.
+- Diagnostic RAII destructors use the same narrow exception-escape exception for unrecoverable allocation exhaustion. spdlog reports file write/flush errors through the session flag; `finish()` must be checked. Profiling macros locally exempt only `cppcoreguidelines-macro-usage` because they must capture lexical scope/function. Other checks remain active.
 
 Any additional exception needs a narrow named-check suppression with a reason and review. Do not disable an entire family to make a build green.
 
@@ -57,8 +60,8 @@ Static analysis and sanitizers cover different paths and classes of defects. Saf
 | Client build / Server build | Each Windows executable builds independently in Debug and Release without test dependencies. |
 | Formatting | clang-format policy for maintained code. |
 | Unit tests | CLI behavior, release version/archive rules, compilation-database selection. |
-| Integration tests | Actual executable invocations and release provenance checks in isolated real Git repositories. |
-| End-to-end tests | Fresh runtime installation, three ZIPs, exact manifests, extraction into isolated directories, and help/version startup with a system-only PATH. |
+| Integration tests | Executable CLI/diagnostic output and I/O failures, plus release provenance in isolated real Git repositories. |
+| End-to-end tests | Fresh runtime installation, three ZIPs, exact manifests/notices, isolated extraction, and startup/log/trace parsing with a system-only PATH. |
 | Static analysis and sanitizers | All maintained C++ translation units, analyzer activation probes, and Linux runtime safety checks. |
 
 CTest labels are `unit`, `integration`, and `end-to-end`. The last label is available only for Windows Release. The suite workflows reuse build/test plumbing but retain separate workflow status. Selecting an unavailable/empty label fails through CTest's no-tests error policy. End-to-end tests create their own staging/extraction state and do not depend on unit/integration jobs or their artifacts.

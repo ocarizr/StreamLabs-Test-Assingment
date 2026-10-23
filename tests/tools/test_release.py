@@ -33,7 +33,7 @@ class ReleaseArchiveTests(unittest.TestCase):
 
     def write_archive(self, *names):
         with zipfile.ZipFile(self.archive, "w") as package:
-            for name in names:
+            for name in (*names, "THIRD-PARTY-NOTICES.txt"):
                 package.writestr(name, b"runtime fixture")
 
     def test_client_and_bundle_have_exact_runtime_manifests(self):

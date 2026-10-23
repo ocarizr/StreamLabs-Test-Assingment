@@ -5,6 +5,7 @@ tag-push workflow is allowed to publish its validated and tested ZIP artifacts.
 """
 
 import argparse
+import json
 import os
 from pathlib import Path
 import re
@@ -56,7 +57,7 @@ def archive_name(kind: str, tag: str) -> str:
 
 def validate_archive(archive: Path, roles: tuple[str, ...]) -> None:
     """Require exactly the standalone M1 runtimes; disallow paths and extra files."""
-    expected = sorted(f"pipeforge-{role}.exe" for role in roles)
+    expected = sorted([*(f"pipeforge-{role}.exe" for role in roles), "THIRD-PARTY-NOTICES.txt"])
     with zipfile.ZipFile(archive) as package:
         if sorted(package.namelist()) != expected:
             raise ValueError(f"unexpected runtime contents in {archive.name}")
@@ -86,7 +87,7 @@ def package_runtime(build: Path, output: Path, tag: str, cmake: str = "cmake") -
                      "--config", "Release", "--component", role], check=True, timeout=60
                 )
             files = sorted(path for path in staging.rglob("*") if path.is_file())
-            expected = sorted(f"pipeforge-{role}.exe" for role in roles)
+            expected = sorted([*(f"pipeforge-{role}.exe" for role in roles), "THIRD-PARTY-NOTICES.txt"])
             if sorted(path.relative_to(staging).as_posix() for path in files) != expected:
                 raise ValueError(f"unexpected installed runtime files for {kind}")
             archive = output / archive_name(kind, tag)
@@ -120,6 +121,28 @@ def smoke_packages(output: Path, tag: str) -> None:
                     expected = f"pipeforge-{role} {version}\n" if option == "--version" else "Usage:"
                     if expected not in result.stdout or result.stderr:
                         raise ValueError(f"invalid packaged {role} {option} output")
+
+                profiling = "Profiling: enabled" in result.stdout
+                log_file = extracted / f"{role}.log"
+                trace_file = extracted / f"{role}.trace.json"
+                command = [str(executable), "--log-file", str(log_file)]
+                if profiling:
+                    command += ["--trace-file", str(trace_file)]
+                command += ["--version"]
+                result = subprocess.run(command, cwd=extracted, env=environment,
+                                        capture_output=True, text=True, timeout=10, check=True)
+                if result.stderr or result.stdout != f"pipeforge-{role} {version}\n":
+                    raise ValueError(f"invalid packaged {role} diagnostic invocation")
+                log = log_file.read_text(encoding="utf-8")
+                if "Command started" not in log or "Command completed" not in log:
+                    raise ValueError(f"missing packaged {role} logs")
+                if profiling:
+                    trace = json.loads(trace_file.read_text(encoding="utf-8"))
+                    events = [event for event in trace["traceEvents"] if event["ph"] == "X"]
+                    if {event["name"] for event in events} != {"cli.command", "print_command"}:
+                        raise ValueError(f"missing packaged {role} profiling scopes")
+                    if any(event["dur"] < 0 or event["ts"] < 0 or event["pid"] <= 0 or event["tid"] <= 0 for event in events):
+                        raise ValueError(f"invalid packaged {role} profiling fields")
 
 
 def main() -> None:

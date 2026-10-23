@@ -1,8 +1,14 @@
 include(GoogleTest)
-add_executable(pipeforge-cli-tests unit/application_tests.cpp)
+add_executable(pipeforge-cli-tests unit/application_tests.cpp unit/diagnostics_tests.cpp
+    unit/diagnostics_behavior_tests.cpp unit/profiling_disabled_tests.cpp)
+set_source_files_properties(unit/profiling_disabled_tests.cpp PROPERTIES COMPILE_DEFINITIONS PIPEFORGE_DISABLE_PROFILING)
 target_link_libraries(pipeforge-cli-tests PRIVATE pipeforge-cli GTest::gtest_main)
+target_link_libraries(pipeforge-cli-tests PRIVATE nlohmann_json::nlohmann_json)
 pipeforge_project_options(pipeforge-cli-tests)
-gtest_discover_tests(pipeforge-cli-tests DISCOVERY_TIMEOUT 30 PROPERTIES LABELS unit)
+gtest_discover_tests(pipeforge-cli-tests DISCOVERY_TIMEOUT 30
+    TEST_FILTER "Application.*:ProfilingDisabled.*" PROPERTIES LABELS unit)
+gtest_discover_tests(pipeforge-cli-tests DISCOVERY_TIMEOUT 30
+    TEST_FILTER "diagnostics_test.*" PROPERTIES LABELS integration)
 
 foreach(role IN ITEMS client server)
     add_test(NAME ${role}-version COMMAND pipeforge-${role} --version)
@@ -19,6 +25,10 @@ set_tests_properties(release-tools PROPERTIES TIMEOUT 60 LABELS unit)
 add_test(NAME release-provenance COMMAND "${Python3_EXECUTABLE}" -m unittest discover
     -s "${CMAKE_SOURCE_DIR}/tests/integration" -v)
 set_tests_properties(release-provenance PROPERTIES TIMEOUT 60 LABELS integration)
+add_test(NAME diagnostic-cli COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_SOURCE_DIR}/tests/integration/check_diagnostic_cli.py"
+    --client "$<TARGET_FILE:pipeforge-client>" --server "$<TARGET_FILE:pipeforge-server>")
+set_tests_properties(diagnostic-cli PROPERTIES TIMEOUT 60 LABELS integration)
 
 if(WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Release")
     add_test(NAME runtime-packages COMMAND "${Python3_EXECUTABLE}"

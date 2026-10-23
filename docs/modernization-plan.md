@@ -2,7 +2,7 @@
 
 Status: M0 and M1 implemented; M2-M6 planned. Updated: 2026-10-23.
 
-M1 establishes the CMake build, minimal separate executables, GoogleTest/CTest harness, explicit formatting and Core Guidelines policy, clang-tidy, Linux ASan/UBSan/leak detection, independent suite workflows/master badges, and tag-only release packaging. Protocol, domain, and named-pipe behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
+M1 establishes CMake, separate executables, tests/CI/master badges, C++ formatting and control-block spacing, static/runtime safety checks, spdlog logging, bounded Chrome Trace scope profiling, and tag-only release packaging. Protocol, domain, and named-pipe behavior remain planned. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [diagnostics](diagnostics.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
 
 ## 1. Source-review findings
 
@@ -149,7 +149,7 @@ Use target-scoped language standards, warnings, include paths, dependencies, and
 
 ### Upstream dependency integration
 
-M1 implements GoogleTest acquisition at immutable revision `52eb8108c5bdec04579160ae17225d66034bd723` (v1.17.0). Protobuf acquisition, generated schemas, and the protocol library remain M2 work. See [dependency notices](third-party.md).
+M1 acquires GoogleTest at immutable revision `52eb8108c5bdec04579160ae17225d66034bd723` (v1.17.0), plus SHA256-verified spdlog v1.17.0 and nlohmann/json v3.12.0 archives for the diagnostic library. spdlog's fmt backend is bundled at that pinned revision. JSON serializes trace files only. Protobuf acquisition, schemas, and the protocol library remain M2 work. See [dependency notices](third-party.md).
 
 Use the official [protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf) and [google/googletest](https://github.com/google/googletest) implementations. Both provide CMake integration; PipeForge owns its schemas, adapters, and tests. No custom Protobuf parser, byte packer, or testing framework is planned.
 
@@ -194,7 +194,7 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | Milestone | Work and test-first focus | Exit criteria |
 | --- | --- | --- |
 | M0: planning (complete) | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope. |
-| M1: build and test harness (implemented) | Root CMake/presets, pinned GoogleTest, executable scaffolds, labeled CTest suites, explicit C++ style/Core Guidelines policy, clang-tidy, Linux ASan/UBSan/leak checks, independent master status badges, and tag-only release publishing. Retire solution/project entry points and untrack generated outputs. | Clean-source build/test without an IDE; no tracked output; static checks/probes and isolated ZIP tests pass locally where supported. Remote CI/Linux instrumentation/publication await a push. No IPC parity claimed. |
+| M1: build and test harness (implemented) | CMake/pinned dependencies, executable scaffolds, CTest/CI/badges, explicit C++ style and control spacing, clang-tidy/Linux sanitizers, shared spdlog logging and scope profiling, tag-only release publishing. Retire IDE build entry points and tracked output. | Clean-source build/test; profiling-on/off and diagnostic lifecycle tests; static/format checks; isolated ZIP log/trace checks. Remote CI/Linux instrumentation/publication await a push. No IPC parity claimed. |
 | M2: protocol | Version-1 `.proto` schemas and typed errors; malformed-input/framing tests before implementation; official pinned Protobuf/protoc integration, static `pipeforge-protocol` library linked by both consumers, tidy, sanitizers, fuzz harness, representative size/performance baseline. | Bounded parsing and semantic validation pass; clean parallel generation and both consumer links succeed; protocol tests and fuzz smoke pass; measurements documented without assumed speedups. |
 | M3: domain/services | Typed repositories, registry/factories/metadata, Counter and second test type, object lifecycle, dispatcher. | In-process R3/R4/R6/R7/R8 tests, including ownership/quota failures. |
 | M4: Windows IPC | RAII wrappers, DACL, framing, overlapped accept/read/write, deadlines, cancellation, bounded sessions, shutdown. | Real transport/failure tests and pending-operation cleanup pass under ASan. |

@@ -29,7 +29,7 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, explicit formatting rules, clang-tidy analysis, Linux ASan/UBSan with leak detection, separate CI test suites, and tag-triggered release packaging. The executables support `--help` and `--version`; starting IPC is deliberately unavailable until the later implementation milestones.
+M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, formatting/spacing checks, clang-tidy analysis, Linux ASan/UBSan with leak detection, spdlog logging, scope profiling, separate CI suites, and tag-triggered release packaging. The executables support `--help` and `--version` with optional diagnostic output; starting IPC is deliberately unavailable until later milestones.
 
 The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
 
@@ -54,6 +54,14 @@ The [coding standards](docs/coding-standards.md) define the project's C++20 layo
 
 Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration/end-to-end badges currently cover the scaffold and distribution, not the named-pipe behavior planned for later milestones.
 
+## Logging and profiling
+
+```powershell
+./build/windows-release/pipeforge-client.exe --log-file build/client.log --trace-file build/client.trace.json --version
+```
+
+Logging uses upstream spdlog/fmt; the common diagnostic library writes bounded Chrome Trace files through spdlog sinks. `PIPEFORGE_PROFILE_SCOPE` and `PIPEFORGE_PROFILE_FUNCTION` record RAII durations with thread/process information. Open traces in Perfetto or Chrome's trace viewer. Both file outputs are opt-in; profiling can be compiled out. See [diagnostic usage and lifecycle](docs/diagnostics.md).
+
 ## Design choices
 
 The proposed design replaces the original decisions:
@@ -71,6 +79,8 @@ The plan explains the architectural tradeoffs and how server-side class registra
 
 ## Dependencies
 
+- [spdlog](https://github.com/gabime/spdlog), v1.17.0 at revision `79524ddd08a4ec981b7fea76afd08ee05f83755d`: static runtime logging and profiling file sinks, with bundled fmt.
+- [nlohmann/json](https://github.com/nlohmann/json), v3.12.0 at revision `65ee68451d8eb2b5f3a30b410476ab83deb3289b`: diagnostic trace serialization only.
 - [GoogleTest](https://github.com/google/googletest), v1.17.0 at revision `52eb8108c5bdec04579160ae17225d66034bd723`: test-only, built through CMake FetchContent and integrated with CTest.
 - [Protocol Buffers](https://github.com/protocolbuffers/protobuf), planned for M2: reuse official `protoc` and the C++ runtime; implement only PipeForge schemas, validation, and domain conversion.
 
@@ -78,7 +88,7 @@ Downloaded sources and generated output remain in the build directory. The plan 
 
 ## Releases
 
-Pushing a version tag such as `V1.0`, `V1.0.0`, or `V1.0.1` publishes a release only if the tagged commit belongs to `master` history. Lowercase `v` is also accepted. The pipeline builds that exact commit and produces three Windows x64 ZIPs: client, server, and bundle. Each contains only the required executable runtime files. Ordinary branch pushes and pull requests never publish. See [release instructions](docs/releases.md) for examples and failure handling.
+Pushing a version tag such as `V1.0`, `V1.0.0`, or `V1.0.1` publishes a release only if the tagged commit belongs to `master` history. Lowercase `v` is also accepted. The pipeline builds that exact commit and produces three Windows x64 ZIPs: client, server, and bundle. Each contains executable runtime files and required third-party notices. Ordinary branch pushes and pull requests never publish. See [release instructions](docs/releases.md) for examples and failure handling.
 
 ## Assumptions
 

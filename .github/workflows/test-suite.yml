@@ -9,6 +9,9 @@ on:
       preset:
         required: true
         type: string
+      profiling:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,9 +29,10 @@ jobs:
         env:
           TEST_LABEL: ${{ inputs.label }}
           TEST_PRESET: ${{ inputs.preset }}
+          PROFILING_ENABLED: ${{ inputs.profiling }}
         run: |
           . ./scripts/Enter-Toolchain.ps1
-          cmake --preset $env:TEST_PRESET
+          cmake --preset $env:TEST_PRESET "-DPIPEFORGE_ENABLE_PROFILING=$env:PROFILING_ENABLED"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset $env:TEST_PRESET
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

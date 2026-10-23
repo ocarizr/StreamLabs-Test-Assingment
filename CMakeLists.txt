@@ -17,6 +17,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(PIPEFORGE_WARNINGS_AS_ERRORS "Treat maintained project warnings as errors" ON)
 option(PIPEFORGE_SANITIZERS "Enable ASan/UBSan (including supported leak detection)" OFF)
+option(PIPEFORGE_ENABLE_PROFILING "Compile profiling scope macros into the application" ON)
 if(PIPEFORGE_SANITIZERS AND
     (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$"))
     message(FATAL_ERROR "The combined sanitizer configuration requires GCC/Clang on Linux")
@@ -24,9 +25,22 @@ endif()
 
 include(CTest)
 include(cmake/ProjectOptions.cmake)
+include(cmake/Dependencies.cmake)
+pipeforge_runtime_dependencies()
 configure_file(cmake/version.hpp.in generated/pipeforge/version.hpp @ONLY)
 
+add_library(pipeforge-diagnostics STATIC src/diagnostics/diagnostics.cpp)
+target_include_directories(pipeforge-diagnostics PUBLIC include)
+target_link_libraries(pipeforge-diagnostics PRIVATE spdlog::spdlog nlohmann_json::nlohmann_json)
+target_compile_definitions(pipeforge-diagnostics PUBLIC
+    PIPEFORGE_ENABLE_PROFILING=$<BOOL:${PIPEFORGE_ENABLE_PROFILING}>)
+pipeforge_project_options(pipeforge-diagnostics)
+if(WIN32)
+    target_compile_definitions(pipeforge-diagnostics PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 add_library(pipeforge-cli STATIC src/cli/application.cpp)
+target_link_libraries(pipeforge-cli PUBLIC pipeforge-diagnostics)
 target_include_directories(pipeforge-cli PUBLIC include "${CMAKE_CURRENT_BINARY_DIR}/generated")
 pipeforge_project_options(pipeforge-cli)
 
@@ -35,10 +49,11 @@ foreach(role IN ITEMS client server)
     target_link_libraries(pipeforge-${role} PRIVATE pipeforge-cli)
     pipeforge_project_options(pipeforge-${role})
     install(TARGETS pipeforge-${role} RUNTIME DESTINATION . COMPONENT ${role})
+    install(FILES "${PIPEFORGE_RUNTIME_NOTICES}" DESTINATION . COMPONENT ${role})
 endforeach()
 
 if(BUILD_TESTING)
-    include(cmake/Dependencies.cmake)
+    pipeforge_test_dependencies()
     add_subdirectory(tests)
 endif()
 

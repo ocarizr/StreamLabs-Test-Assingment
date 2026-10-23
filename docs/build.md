@@ -39,7 +39,7 @@ Linux tests validate the same CLI and release-policy logic. Later Windows pipe t
 
 ## Dependencies and offline builds
 
-`cmake/Dependencies.cmake` builds GoogleTest v1.17.0 at commit `52eb8108c5bdec04579160ae17225d66034bd723`. It has no enabled external transitive dependencies in this configuration. GoogleMock and upstream installation are disabled. GoogleTest is never linked into the application executables.
+`cmake/Dependencies.cmake` acquires spdlog v1.17.0 (with bundled fmt) and nlohmann/json v3.12.0 from immutable archives verified by SHA256. They are used by the common static diagnostic library. Test-enabled builds also acquire GoogleTest v1.17.0 at commit `52eb8108c5bdec04579160ae17225d66034bd723`; GoogleMock and upstream installation are disabled. GoogleTest is never linked into the application executables. See [dependency notices](third-party.md) for revisions and licenses.
 
 For an offline configure, prepopulate that exact checkout and use:
 
@@ -47,19 +47,22 @@ For an offline configure, prepopulate that exact checkout and use:
 cmake --preset windows-debug "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=C:/deps/googletest"
 ```
 
+Runtime sources must also be prepopulated for a fully offline configure: pass `-DFETCHCONTENT_SOURCE_DIR_SPDLOG=C:/deps/spdlog` and `-DFETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON=C:/deps/json`, each at its pinned revision. No unversioned system runtime dependency is silently selected.
+
 The offline source override is explicit and must match the pinned revision; it bypasses FetchContent acquisition. A previously populated build can be configured with `-DFETCHCONTENT_UPDATES_DISCONNECTED=ON`. New CI builds acquire the pinned sources directly; no cross-toolchain binary cache is used in M1. A future dependency cache must include compiler, runtime, architecture, and dependency revisions in its key.
 
-Application-only builds can use `-DBUILD_TESTING=OFF` and do not fetch GoogleTest or require Python to compile. Python remains necessary for formatting and release tooling. Protobuf and its transitive dependency graph are intentionally deferred to M2.
+Application-only builds can use `-DBUILD_TESTING=OFF` and do not fetch GoogleTest or require Python to compile. They still build the runtime diagnostic dependencies. Python remains necessary for formatting and release tooling. Protobuf and its transitive dependency graph remain M2 work; JSON here is used only for diagnostic trace files.
 
 ## Formatting and tests
 
 ```powershell
 python scripts/check_format.py
+python scripts/check_format.py --fix
 cmake --build build/windows-debug --target format-check
 python -m unittest discover -s tests/tools -v
 ```
 
-The format script rejects a different tool version and checks maintained sources under `apps`, `include`, `src`, and `tests/unit`, plus `cmake/version.hpp.in`. Upstream/generated output and archived `Client`/`Server` snapshots are excluded. The CMake target is available when Python is discoverable. The [coding standards](coding-standards.md) describe the explicit C++ style and semantic policy.
+The format script rejects a different tool version and checks maintained sources under `apps`, `include`, `src`, and `tests/unit`, plus `cmake/version.hpp.in`. It combines clang-format with a lexical blank-line rule after complete braced control blocks; `--fix` applies both policies. Functions are separated by clang-format's definition-block policy. Upstream/generated output and archived `Client`/`Server` snapshots are excluded. The CMake target is available when Python is discoverable. See [coding standards](coding-standards.md).
 
 CTest separates unit behavior from process/Git integration and isolated package end-to-end validation. Release provenance tests create temporary Git repositories; they never change this project's history. CTest fails if no matching tests are discovered and applies time limits.
 
@@ -94,8 +97,8 @@ ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_
 
 The combined sanitizer option is intentionally rejected on Windows and unsupported compilers. Linux instrumentation does not cover Win32 named-pipe code. See the coding standards for check coverage and exceptions.
 
-Windows builds use the static MSVC CRT consistently across application and test libraries. M1 runtime ZIPs therefore need only their executable files and standard Windows system libraries. A later runtime dependency must add install rules, a reviewed package manifest, applicable notices, and isolated extraction tests.
+Windows builds use the static MSVC CRT consistently across application and test libraries. Runtime ZIPs contain executables plus `THIRD-PARTY-NOTICES.txt`; spdlog/fmt/JSON are statically linked and add no runtime DLLs. A later dynamic dependency must extend the installation/manifest and isolated extraction tests. [Diagnostic options](diagnostics.md) document logs, profiling macros, lifecycle, and `PIPEFORGE_ENABLE_PROFILING=OFF`.
 
 ## Current CI scope
 
-Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, and static-analysis/sanitizer workflows, plus a compiler compatibility matrix. README badges report only master push runs, not PR results. Reusable workflows share component-build and test-suite plumbing. Fuzzing, real IPC integration, Windows transport sanitizers, and Doxygen coverage remain later work. Release publishing is separate and documented in [releases](releases.md).
+Pull requests and pushes to `master` run separate client/server build, formatting, unit, integration, end-to-end, and static-analysis/sanitizer workflows, plus a compiler compatibility matrix and a profiling-disabled unit/integration configuration. README badges report only master push runs, not PR results. Reusable workflows share component-build and test-suite plumbing. Fuzzing, real IPC integration, Windows transport sanitizers, and Doxygen coverage remain later work. Release publishing is separate and documented in [releases](releases.md).

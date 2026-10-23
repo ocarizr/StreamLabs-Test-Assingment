@@ -16,5 +16,6 @@ int main(int argc, char* argv[])
     for (const auto* argument : raw_arguments | std::views::drop(1)) {
         arguments.emplace_back(argument);
     }
+
     return pipeforge::run_application("pipeforge-server", arguments, std::cout, std::cerr);
 }

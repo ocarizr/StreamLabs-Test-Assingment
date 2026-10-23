@@ -25,13 +25,13 @@ The build job checks out the validated commit, revalidates it, configures `windo
 
 | Asset for V1.0.0 | Contents |
 | --- | --- |
-| `pipeforge-client-V1.0.0-windows-x64.zip` | `pipeforge-client.exe` |
-| `pipeforge-server-V1.0.0-windows-x64.zip` | `pipeforge-server.exe` |
-| `pipeforge-bundle-V1.0.0-windows-x64.zip` | Both executables |
+| `pipeforge-client-V1.0.0-windows-x64.zip` | `pipeforge-client.exe` and third-party notices |
+| `pipeforge-server-V1.0.0-windows-x64.zip` | `pipeforge-server.exe` and third-party notices |
+| `pipeforge-bundle-V1.0.0-windows-x64.zip` | Both executables and third-party notices |
 
-The explicit M1 runtime manifest rejects debug symbols, tests, static libraries, source, nested paths, and extra files. Neither GoogleTest nor development tools are packaged. The static CRT avoids a separate Visual C++ redistributable dependency for these executables. The archive manifest must evolve alongside any future required runtime DLLs or notices.
+The explicit M1 runtime manifest requires `THIRD-PARTY-NOTICES.txt` for the statically linked diagnostic libraries and rejects debug symbols, tests, development libraries, source, nested paths, and extra files. Neither GoogleTest nor development tools are packaged. The static CRT avoids a separate Visual C++ redistributable dependency. Future runtime DLLs or notices must update the manifest and tests.
 
-Each ZIP is extracted into its own temporary directory and its executable(s) run with `--version` and `--help`, a system-only PATH, and no build-directory working directory. This checks package contents, version injection, startup, and missing application DLLs. It is not a replacement for later IPC acceptance tests or a test on every supported Windows installation.
+Each ZIP is extracted into its own temporary directory and its executable(s) run with `--version` and `--help`, a system-only PATH, and no build-directory working directory. Additional invocations generate real log files and Chrome Trace events, which are parsed and checked for the expected scopes and timing fields. This validates diagnostics as well as package contents/version/startup. It does not replace later IPC acceptance tests or test every Windows installation.
 
 Only validated ZIPs pass to the publishing job. That job has `contents: write`, executes no checked-out project code, rechecks the remote tag's commit, creates a draft release with the three assets, and publishes it after successful upload. Build/validation jobs have read-only permissions. No external personal access token is required. GitHub also displays its automatic source archives; those are separate from the three runtime assets.
 

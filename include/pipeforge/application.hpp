@@ -12,7 +12,7 @@ namespace pipeforge {
  * @param arguments Arguments excluding argv[0]; borrowed for this call only.
  * @param output Destination for help and version information.
  * @param errors Destination for usage errors and unavailable-operation diagnostics.
- * @return 0 for help/version, 2 for unsupported invocation.
+ * @return 0 for help/version, 1 for diagnostic I/O failure, 2 for invalid invocation.
  * No state is retained. Stream exceptions propagate if enabled by the caller.
  */
 int run_application(std::string_view name,

@@ -32,7 +32,19 @@ clang-tidy analyzed all four maintained translation units with enabled findings 
 
 README badges use the verified current remote URL and explicitly select `branch=master&event=push`; they cannot report a feature-branch or PR run as master status. Status becomes available only after the corresponding workflow runs on master.
 
-## Limits of this verification
+## Logging, profiling, and spacing completion
+
+The first three diagnostic tests failed against the stub backend (missing text output, missing I/O error, and missing scope events). The implemented spdlog adapter made them pass. Expanded tests then parsed the complete JSON document and caught an extra opening delimiter; correcting the fixed-format header made those tests pass. Real CLI tests verify setup errors, aliases, required options, and explicit file output.
+
+The final library uses pinned, SHA256-verified spdlog/fmt and nlohmann/json sources. Both executables link the same static diagnostic target. Tests cover nested/unwound scopes, event limits, Unicode/escaping, concurrent thread tracks, deferred shutdown, and disabled macro argument evaluation. File/diagnostic adapter cases carry the integration label; CLI string/option logic and disabled macro behavior remain unit checks.
+
+The profiling-on Windows Release configuration passes all 26 CTest entries, including isolated package log/trace generation and parsing. A global profiling-off clang-cl configuration also builds and passes its applicable tests; trace-producing tests are intentionally skipped while macro side-effect, text log, and CLI rejection tests execute. CI now includes this variant. clang-tidy checks eight maintained translation units, including the diagnostic implementation and tests.
+
+The integrated formatting command applies/checks one empty line after completed control-flow blocks and between function definitions. Seven spacing regression cases cover chains, loops, comments/literals/raw strings, macros, enclosing braces, and idempotence. The same command and policy run in CI. The three release ZIPs retain exact executable manifests plus required third-party notices; diagnostics are tested from extracted runtimes with a system-only PATH.
+
+Example outputs are reproducible through [diagnostic usage](diagnostics.md); local examples live under ignored `build/examples/`. No release or tag was published by this work.
+
+## Remaining verification limits
 
 The workflows have been linted locally but have not run on GitHub. The Linux job awaits remote execution; no local Linux environment is installed. Publication itself awaits a user push of a supported tag on master history. Local ZIP startup testing checks the available Windows installation, not every possible target host.
 

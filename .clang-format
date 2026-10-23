@@ -34,7 +34,7 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^"pipeforge/'
     Priority: 1
-  - Regex: '^<gtest/'
+  - Regex: '^<(gtest|nlohmann|spdlog)/'
     Priority: 3
   - Regex: '^<'
     Priority: 2
