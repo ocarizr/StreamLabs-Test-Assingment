@@ -4,7 +4,7 @@
 
 Use the [ISO C++ FAQ on coding standards](https://isocpp.org/wiki/faq/coding-standards) and the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines) as references. They are guidance, not an ISO-mandated formatter preset or a complete mechanically enforceable standard. The language build mode is C++20.
 
-PipeForge chooses a documented house style for consistent maintenance. Formatting, semantic analysis, runtime instrumentation, and review serve different purposes; none replaces the others. Upstream/generated code retains its own conventions. Archived legacy sources are excluded until replaced.
+PipeForge chooses a documented house style for consistent maintenance. Formatting, semantic analysis, runtime instrumentation, and review serve different purposes; none replaces the others. Upstream/generated code retains its own conventions. Unused legacy sources were removed during the pre-M3 cleanup and remain available in Git history.
 
 ## Layout and naming
 
@@ -32,7 +32,7 @@ Use one empty line after a complete braced `if`/`else`, loop, `switch`, or `try`
 | `cert-*`, `portability-*` | Additional safety/security and portability diagnostics. |
 | `performance-*`, selected `modernize-*`/`readability-*` | Avoidable costs, explicit overrides/null pointers, ownership helpers, naming, and braces. |
 
-All enabled diagnostics are errors. `scripts/check_tidy.py` verifies the configuration, reads the actual CMake `compile_commands.json`, deduplicates and checks every maintained translation unit, and restricts header diagnostics to this checkout. It fails if there are no selected sources. Third-party/generated/legacy implementation files are excluded, not globally suppressed compiler errors.
+All enabled diagnostics are errors. `scripts/check_tidy.py` verifies the configuration, reads the actual CMake `compile_commands.json`, deduplicates and checks every maintained translation unit, and restricts header diagnostics to this checkout. It fails if there are no selected sources. Third-party/generated implementation files are excluded, not globally suppressed compiler errors.
 
 Clang's `N warnings generated.` totals include diagnostics that its header/system filters exclude from reporting. They are not counts of outstanding project findings. The runner preserves complete output in `build/<configuration>/clang-tidy.log` and prints every emitted diagnostic while moving only those standalone totals out of the console. CI retains the full log as the `clang-tidy-log` artifact for 14 days, including on analysis failure. Exit status and `WarningsAsErrors` remain unchanged; regression tests verify that real warnings/errors remain visible and a failed analyzer still fails the script. See the [clang-tidy header-filter and quiet options](https://clang.llvm.org/extra/clang-tidy/).
 

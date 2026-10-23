@@ -49,3 +49,7 @@ Language: Proto
 BasedOnStyle: Google
 ColumnLimit: 100
 IndentWidth: 2
+# clang-format 19 separates enums but not every message; check_format.py also
+# applies the message/enum gap policy to ensure consistent schema spacing.
+SeparateDefinitionBlocks: Always
+MaxEmptyLinesToKeep: 1

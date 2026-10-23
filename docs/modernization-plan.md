@@ -8,7 +8,7 @@ M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ co
 
 ## 1. Source-review findings
 
-These are historical observations from the M0 source review, not results of executing the legacy binaries. M1 retires the solution/project files and untracks generated artifacts; retained legacy sources are excluded from the replacement build.
+These are historical observations from the M0 source review, not results of executing the legacy binaries. M1 retired the solution/project files and untracked generated artifacts. The unused `Client/` and `Server/` sources were removed during the pre-M3 cleanup; the historical paths below refer to Git history.
 
 | Finding and evidence | Consequence | Planned response |
 | --- | --- | --- |
@@ -200,7 +200,7 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | M2: protocol (implemented) | Version-1 schemas/contracts, all operation/outcome shapes, constructor metadata, bounded full-runtime Protobuf codec, incremental framing, malformed/golden/negative tests, compiler-version guard test, deterministic and libFuzzer harnesses, size/CPU baseline. | Local protocol/generation/consumer checks and deterministic fuzz smoke; static/format checks; Linux sanitizer/libFuzzer workflows require remote execution. See M2 verification for exact executed checks. |
 | M3: domain/services | Reuse M2's typed values, operations and metadata; bounded repositories, registry/factories, Counter and second type, object lifecycle, dispatcher; safe diagnostic IDs/categories at the service boundary. | In-process R3/R4/R6/R7/R8 tests, including ownership, quotas, duplicate registration, paging cursors and checked arithmetic without state mutation on overflow. |
 | M4: Windows IPC | RAII wrappers, DACL, overlapped accept/read/write, M2 incremental framing, deadlines, cancellation, bounded simultaneous decodes/sessions, shutdown. | Real transport/failure tests and pending-operation cleanup under ASan; distinguish fatal frame/parse failures from correlated semantic errors. |
-| M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes satisfy R1-R8, simultaneous mixed-style sessions, unexpected response IDs/outcomes fail predictably; superseded legacy code removed. |
+| M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes satisfy R1-R8, simultaneous mixed-style sessions, unexpected response IDs/outcomes fail predictably. |
 | M6: quality/delivery | Complete CI matrix, usage/protocol/Doxygen guides, optional publishing, dependency review, repository cleanup. | Required checks pass, documentation matches behavior, clean checkout reproduces results, limitations documented. |
 
 Each implementation work item starts on a new branch. Review the diff, run appropriate checks, stage an explicit file list, and supply a suggested commit message without committing. Exclude local settings, secrets, machine-specific output, downloaded tools, and unrelated changes.

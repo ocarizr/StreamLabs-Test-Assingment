@@ -12,7 +12,7 @@ Testing/
 compile_commands.json
 CMakeUserPresets.json
 
-# IDE state and legacy build output
+# IDE state and build output
 .vs/
 .vscode/
 *.user
