@@ -1,5 +1,6 @@
 #include "pipeforge/protocol.hpp"
 #include "pipeforge/v1/protocol.pb.h"
+#include "pipeforge/validation.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -13,37 +14,7 @@
 namespace pipeforge::protocol {
 namespace {
 namespace pb = ::pipeforge::wire::v1;
-constexpr std::size_t max_message_nodes = 4096;
 constexpr int max_unknown_fields = 128;
-
-bool valid_name(std::string_view name, bool allow_empty = false)
-{
-    if (name.empty()) {
-        return allow_empty;
-    }
-
-    if (name.size() > max_name_bytes || (name.front() >= '0' && name.front() <= '9')) {
-        return false;
-    }
-
-    return std::ranges::all_of(name, [](char character) {
-        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
-               (character >= '0' && character <= '9') || character == '_';
-    });
-}
-
-bool valid_kind(value_kind kind)
-{
-    return kind == value_kind::text || kind == value_kind::integer || kind == value_kind::real;
-}
-
-template <typename Range> bool unique_names(const Range& entries)
-{
-    std::set<std::string_view> names;
-    return std::ranges::all_of(entries, [&names](const auto& entry) {
-        return valid_name(entry.name) && names.insert(entry.name).second;
-    });
-}
 
 bool bounded_unknowns(const google::protobuf::UnknownFieldSet& unknown, int& remaining, int depth)
 {
@@ -169,7 +140,7 @@ std::optional<std::vector<named_value>> read_named(const Repeated& entries)
         output.push_back({entry.name(), *data});
     }
 
-    if (!unique_names(output)) {
+    if (!valid_names(output)) {
         return std::nullopt;
     }
 
@@ -186,17 +157,12 @@ void write_named(const std::vector<named_value>& entries, Repeated& output)
     }
 }
 
-bool page_size(std::uint32_t size)
-{
-    return size != 0 && size <= max_entries;
-}
-
 std::optional<operation> read_operation(const pb::Request& input)
 {
     switch (input.operation_case()) {
     case pb::Request::kListClasses:
         if (valid_name(input.list_classes().after(), true) &&
-            page_size(input.list_classes().limit())) {
+            valid_page_size(input.list_classes().limit())) {
             return list_classes{input.list_classes().after(), input.list_classes().limit()};
         }
 
@@ -220,7 +186,7 @@ std::optional<operation> read_operation(const pb::Request& input)
 
         break;
     case pb::Request::kListValues:
-        if (page_size(input.list_values().limit())) {
+        if (valid_page_size(input.list_values().limit())) {
             return list_values{input.list_values().after(), input.list_values().limit()};
         }
 
@@ -342,7 +308,7 @@ std::optional<std::vector<parameter>> read_parameters(const Repeated& input)
         output.push_back({argument.name(), kind});
     }
 
-    if (!unique_names(output)) {
+    if (!valid_names(output)) {
         return std::nullopt;
     }
 
@@ -399,7 +365,7 @@ std::optional<class_description> read_description(const pb::ClassDescription& in
         output.methods.push_back(std::move(descriptor));
     }
 
-    if (!unique_names(output.attributes) || !unique_names(output.methods)) {
+    if (!valid_names(output.attributes) || !valid_names(output.methods)) {
         return std::nullopt;
     }
 

@@ -45,6 +45,8 @@ Open [Perfetto UI](https://ui.perfetto.dev), choose **Open trace file**, and sel
 
 This JSON is a diagnostic file format. The planned IPC contract remains binary Protobuf; no JSON fallback is added to named-pipe messages. Each file has its own monotonic origin; cross-process trace merging requires explicit clock alignment and is not implemented here.
 
+M3 dispatch can borrow an explicit diagnostic session. It logs only request IDs, local operation names and result codes; class/member names and values are omitted. Fixed `server.dispatch` scopes are covered with profiling on and off. See [domain/services](domain-services.md).
+
 ## Disabling instrumentation
 
 ```powershell
