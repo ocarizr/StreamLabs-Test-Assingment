@@ -26,6 +26,11 @@
       "cacheVariables": { "CMAKE_CXX_COMPILER": "clang-cl", "CMAKE_C_COMPILER": "clang-cl" }
     },
     {
+      "name": "windows-asan",
+      "inherits": "windows-clang",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "PIPEFORGE_WINDOWS_ASAN": "ON" }
+    },
+    {
       "name": "linux-debug",
       "inherits": "base",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
@@ -36,12 +41,14 @@
     { "name": "windows-debug", "configurePreset": "windows-debug" },
     { "name": "windows-release", "configurePreset": "windows-release" },
     { "name": "windows-clang", "configurePreset": "windows-clang" },
+    { "name": "windows-asan", "configurePreset": "windows-asan" },
     { "name": "linux-debug", "configurePreset": "linux-debug" }
   ],
   "testPresets": [
     { "name": "windows-debug", "configurePreset": "windows-debug", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error", "timeout": 30 } },
     { "name": "windows-release", "configurePreset": "windows-release", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error", "timeout": 30 } },
     { "name": "windows-clang", "configurePreset": "windows-clang", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error", "timeout": 30 } },
+    { "name": "windows-asan", "configurePreset": "windows-asan", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error", "timeout": 30 } },
     { "name": "linux-debug", "configurePreset": "linux-debug", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error", "timeout": 30 } }
   ]
 }

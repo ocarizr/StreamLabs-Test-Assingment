@@ -14,12 +14,27 @@ SPEC.loader.exec_module(release)
 
 class ReleaseVersionTests(unittest.TestCase):
     def test_supported_tags_are_normalized(self):
-        for tag, expected in (("V1.0", "1.0.0"), ("V1.0.0", "1.0.0"), ("V1.0.1", "1.0.1"), ("v2.4.9", "2.4.9")):
+        for tag, expected in (
+            ("V1.0", "1.0.0"),
+            ("V1.0.0", "1.0.0"),
+            ("V1.0.1", "1.0.1"),
+            ("v2.4.9", "2.4.9"),
+        ):
             with self.subTest(tag=tag):
                 self.assertEqual(release.normalized_version(tag), expected)
 
     def test_unsupported_tags_fail_before_building(self):
-        for tag in ("1.0.0", "V1", "V01.0", "V1.0.01", "V1.0.0-rc1", "V1.0.0/other", "V1.0\n", "V1.0;exit", ""):
+        for tag in (
+            "1.0.0",
+            "V1",
+            "V01.0",
+            "V1.0.01",
+            "V1.0.0-rc1",
+            "V1.0.0/other",
+            "V1.0\n",
+            "V1.0;exit",
+            "",
+        ):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 release.normalized_version(tag)
 
@@ -43,19 +58,30 @@ class ReleaseArchiveTests(unittest.TestCase):
         release.validate_archive(self.archive, ("client", "server"))
 
     def test_source_debug_symbols_tests_and_paths_are_rejected(self):
-        for extra in ("source.cpp", "client.pdb", "gtest.dll", "../pipeforge-client.exe", "bin/pipeforge-server.exe"):
+        for extra in (
+            "source.cpp",
+            "client.pdb",
+            "gtest.dll",
+            "../pipeforge-client.exe",
+            "bin/pipeforge-server.exe",
+        ):
             with self.subTest(extra=extra):
                 self.write_archive("pipeforge-client.exe", extra)
+
                 with self.assertRaises(ValueError):
                     release.validate_archive(self.archive, ("client",))
 
     def test_missing_runtime_is_rejected(self):
         self.write_archive("pipeforge-client.exe")
+
         with self.assertRaises(ValueError):
             release.validate_archive(self.archive, ("client", "server"))
 
     def test_debug_build_is_not_packaged(self):
-        (self.directory / "CMakeCache.txt").write_text("CMAKE_BUILD_TYPE:STRING=Debug\n", encoding="utf-8")
+        (self.directory / "CMakeCache.txt").write_text(
+            "CMAKE_BUILD_TYPE:STRING=Debug\n", encoding="utf-8"
+        )
+
         with self.assertRaises(ValueError):
             release.package_runtime(self.directory, self.directory / "out", "V1.0")
 
