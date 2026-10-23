@@ -35,7 +35,7 @@ int main()
 	bool bConnChoosed = false;
 
 	// I will develop a simple UI just for testing purposes
-	cout << "\t\t....STREAMLABS TEST ASSINGMENT SERVER APP...." << endl;
+	cout << "\t\t....PIPEFORGE SERVER...." << endl;
 	cout << endl;
 	while (!bConnChoosed)
 	{

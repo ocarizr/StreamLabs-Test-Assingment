@@ -1,8 +1,8 @@
-# C++ named-pipe modernization plan
+# PipeForge modernization plan
 
 Status: proposed implementation baseline. Date: 2026-10-23.
 
-This stage reviews the repository and defines the work. It does not implement the replacement application, tests, CMake migration, or GitHub Actions workflows. R1-R8 refer to the unchanged numbered challenge requirements in the README. These decisions replace the legacy design choices and assumptions.
+This stage reviews the repository and defines the work. It does not implement the replacement application, tests, CMake migration, or GitHub Actions workflows. R1-R8 refer to the numbered functional requirements in the README. These decisions replace the legacy design choices and assumptions.
 
 ## 1. Source-review findings
 
@@ -48,6 +48,7 @@ R7 does not specify who initiates registration or require uploading source. The 
 | Arbitrary class/object files | IDs and validated typed values | Processes share value contracts, not executable code or ABI. |
 | One client and one mode per run | Bounded concurrent sessions with mixed call styles | Removes unnecessary restriction; initial domain mutations are serialized. |
 | Positional maps and short opcodes | Versioned fields, explicit operation names, IDs, and errors | Testable validation and evolution; legacy wire compatibility is dropped. |
+| JSON as the initial proposed format | Official Google Protobuf C++ implementation and shared static protocol library | Typed schemas and compact binary encoding; introduces code generation and a runtime dependency. Measure performance rather than assuming improvement. |
 | Catch-all helpers | Native result checking and targeted exception translation | Preserve failure causes; do not treat native status codes as thrown exceptions. |
 
 ### Components and dependencies
@@ -56,7 +57,8 @@ Proposed layout, to be created during implementation:
 
 ```text
 CMakeLists.txt / CMakePresets.json
-include/streamlabs/         Public value contracts and client API
+include/pipeforge/          Public value contracts and client API
+proto/pipeforge/v1/         Versioned Protocol Buffers schemas
 src/protocol/              Serialization, framing, validation
 src/domain/                Registry, values, object store
 src/server/                Application services and request dispatch
@@ -71,7 +73,11 @@ docs/                      Architecture, protocol, usage, Doxygen
 .github/workflows/         Build, analysis, sanitizers, documentation
 ```
 
+Use `PipeForge` as the CMake project name and `pipeforge` as the public C++ namespace. The future executable targets are `pipeforge-client` and `pipeforge-server`.
+
 Domain code has no transport/client/Win32 dependencies. Protocol code depends on value contracts; transport moves bytes without interpreting business operations. Server services depend on narrow repository contracts and the class registry. Entry points compose implementations. Client links contracts and transport, not server implementation.
+
+Build `pipeforge-protocol` as a STATIC CMake target containing generated `.pb.cc` sources, framing, validation, and domain conversion adapters. Both executables link it, directly or through their application libraries. Each executable owns its linked copy; this is code reuse, not shared process memory. Keep generated Protobuf types internal to the protocol boundary and out of domain/public client interfaces. The protocol target links the upstream `protobuf::libprotobuf` target so CMake propagates required link dependencies. Use the full runtime initially; evaluate the lite runtime only if measurements justify its reflection/diagnostics tradeoffs.
 
 Apply SOLID through separate responsibilities, extensibility by registration, consistent lifetime/error contracts, small interfaces, and injected I/O dependencies. Apply DRY to codecs, validation, dispatch, and error translation. Avoid an interface for every class or abstractions for hypothetical backends.
 
@@ -79,14 +85,20 @@ Use Factory/Registry for classes, Repository for stored state, Adapter for Win32
 
 ### Wire contract
 
-- One local duplex endpoint, initially `\\.\pipe\streamlabs-assignment-v1`. Tests use unique names and explicit readiness signals.
-- Byte-mode pipe with a 4-byte unsigned little-endian payload length followed by UTF-8 JSON. Request envelope: `version`, `request_id`, `operation`, `arguments`. Response: echoed ID plus either `result` or `error`.
-- Initially use nlohmann/json, pinned to a reviewed release at implementation time. Validate schemas without implicit coercion; reject duplicate keys and unknown envelope fields. Enforce nesting bounds before constructing an unbounded object tree. Do not hand-roll JSON parsing.
-- Values carry explicit type tags. Encode int64 values as canonical decimal strings to prevent precision loss in JSON consumers. Specify finite-double round trips, UTF-8 validity, and embedded-NUL handling in tests.
+- One local duplex endpoint, initially `\\.\pipe\pipeforge-v1`. Tests use unique names and explicit readiness signals.
+- Byte-mode pipe with a 4-byte unsigned little-endian payload length followed by one binary Protobuf envelope. Protobuf does not supply top-level message boundaries for a stream; retain PipeForge framing and partial-transfer handling.
+- Define proto3 schemas in package `pipeforge.wire.v1`. Request envelopes carry explicit version presence, a nonzero request ID, and a `oneof` of typed operation messages. Responses echo the ID and contain a `oneof` result/error. Validate required application fields after parsing; a successful parse does not establish a valid request.
+- Reuse Google's `protoc` and C++ runtime for encoding/decoding. Implement PipeForge schemas, adapters, and validation, not a new serializer or byte packer. Do not introduce JSON payloads inside Protobuf or gRPC services/stubs.
+- Define a typed `Value` with `oneof` string, `sint64`, and double alternatives. ZigZag encoding supports compact small negative integers; integers no longer need decimal-string conversion. Enforce finite doubles, UTF-8 validity, string lengths, and explicit presence, including zero and empty-string values. Model object snapshots, attributes, and method arguments with bounded typed entries, not arbitrary executable types or `Any` payloads.
+- Never reuse field numbers; reserve removed names/numbers and avoid incompatible type changes. Permit bounded unknown fields for additive evolution, but reject unsupported versions, unset/unknown operation alternatives, and invalid enums. Follow Protobuf semantics: duplicate singular scalar fields use the last value, embedded messages may merge, and a later different `oneof` alternative replaces the selected alternative. Do not require a custom duplicate-field scanner. Reject duplicate application-level attribute/argument names where ambiguity matters.
 - Validate lengths before allocation; handle partial transfers and concatenated frames. Never assume one read equals one request or transmit an STL representation.
 - Initial defaults: 1 MiB frame payload, nesting depth 16, 64 KiB strings, 4 sessions, 16 pending requests per session, 100 stored values and 100 objects per session, 8 MiB accounted session state. Registry types declare bounded state/results. Reject mutations before quotas are exceeded; paginate list responses to stay within frame limits.
 - Connection/request deadlines default to 5 seconds, configurable within documented bounds. Bound queues/workers; overload returns a stable error.
 - Operations: describe/list classes, put/get/list values, create/get/release object, get attribute, invoke method. Specify schemas, numeric-overflow behavior, and error codes before implementation.
+
+Use bounded `CodedInputStream` decoding with total-byte and recursion limits, require complete frame consumption, and validate collection cardinalities and application constraints before dispatch. A bounded wire frame is not an exact heap-allocation bound: decoded objects and unknown fields can expand in memory. Avoid recursive value schemas, limit simultaneous decodes, account stored state separately, and test adversarial field counts under sanitizers. Unknown fields must remain within the same resource limits and must not be echoed as arbitrary payloads.
+
+Binary encoding is not general-purpose compression. Start without a compression layer. Measure serialized bytes, encode/decode CPU time and allocations, and end-to-end pipe latency/throughput for small control requests, object operations, long strings, and numeric batches. Record build configuration and payloads; use any test-only JSON reference solely for comparison, not as a second supported wire format. Do not make noisy performance thresholds mandatory PR gates before establishing a repeatable baseline.
 
 ### Concurrency, lifetime, and errors
 
@@ -100,7 +112,7 @@ Objects and values belong to their creating session, survive until explicit rele
 
 Expected failures use a typed result, implemented with `std::variant` in C++20. Categories include invalid request, not found, quota exceeded, timeout, cancelled, access denied, transport failure, and internal failure. Capture native codes immediately after failed calls. Wire errors expose stable codes; sensitive diagnostics stay local.
 
-Check Win32 return values directly. Catch specific exceptions from throwing parser/filesystem/stream adapters at their boundary and translate them. Keep ordinary validation exception-free. JSON decoding exception translation belongs at the input boundary. Avoid blanket catch-and-continue helpers and pervasive try/catch blocks.
+Check Win32 return values directly. Protobuf parse/serialize status failures become typed protocol errors; do not add try/catch around status-returning APIs. Catch specific exceptions only from adapters that actually throw, such as optional filesystem/stream I/O, at a boundary where recovery or translation is meaningful. Keep ordinary validation exception-free. Avoid blanket catch-and-continue helpers and pervasive try/catch blocks.
 
 ## 4. Security and IPC failure model
 
@@ -109,7 +121,7 @@ Treat local peers as untrusted input. The baseline is a same-user, non-elevated 
 - Use an explicit DACL restricted to the intended user/logon context; reject remote clients using `PIPE_REJECT_REMOTE_CLIENTS`. Test other-user denial where runner permissions allow, and document manual checks otherwise.
 - Use `FILE_FLAG_FIRST_PIPE_INSTANCE` for the first listener instance to fail on an occupied name. Later instances belong to that listener. Test this lifecycle. Same-user malicious processes remain outside a strong authentication boundary; do not claim protection against a compromised account.
 - Handle immediate/pending completion, `ERROR_IO_PENDING`, `ERROR_PIPE_CONNECTED`, busy/unavailable pipe, zero-byte EOF, peer exit, truncated frames, failed writes, cancellation races, and shutdown. Avoid busy spins, unconditional flushes, and unbounded retries.
-- Reject malformed JSON/UTF-8, unsupported versions, duplicate or unknown request IDs, invalid fields/members/numbers, oversized lengths, excessive nesting, and quota exhaustion. Framing violations close the session; valid frames containing invalid operations receive structured errors.
+- Reject malformed/truncated Protobuf, invalid UTF-8, unsupported versions, duplicate in-flight request IDs, unknown response IDs, invalid fields/members/numbers, oversized lengths, excessive nesting/cardinality, and quota exhaustion. Framing violations close the session; undecodable envelopes also close it because no request ID can be trusted. Decodable envelopes with invalid operations receive structured errors when correlation is valid. Bounded unknown fields follow the compatibility policy above.
 - Accept no source uploads, library paths, filesystem paths, shell commands, function pointers, or executable code. Remove dynamic code loading.
 - Do not log payloads by default. Log operation, correlation ID, error category, and native code where useful.
 
@@ -117,13 +129,13 @@ Static analysis does not prove memory or IPC safety. Combine ownership design, b
 
 ## 5. TDD and verification
 
-Use GoogleTest and CTest, pinned when introduced. Unit tests inject fake byte transports and a controllable clock/completion scheduler. Integration tests use actual Windows named pipes. Assert observable behavior and cleanup rather than mirroring implementation details.
+Reuse upstream GoogleTest with CTest, pinned when introduced; GoogleMock is optional for behavioral interactions that benefit from it. Do not build a replacement testing framework. Unit tests inject fake byte transports and a controllable clock/completion scheduler. Integration tests use actual Windows named pipes. Assert observable behavior and cleanup rather than mirroring implementation details.
 
 For every slice: write a failing behavioral test, verify its intended failure, implement the smallest passing behavior, then refactor with tests green. Record brief red/green evidence in the work summary; commits remain manual. An unbuildable legacy baseline is not evidence of a meaningful failing behavioral test.
 
 | Layer | Required cases |
 | --- | --- |
-| Protocol | Independent known wire vectors, round trips, split headers/payloads, concatenated frames, overflow/oversize lengths, duplicate keys, nesting, malformed UTF-8/JSON, numeric boundaries. |
+| Protocol | Independent known Protobuf vectors, semantic round trips, split headers/payloads, concatenated frames, overflow/oversize lengths, truncated varints/length-delimited fields, invalid wire types, recursion/cardinality limits, UTF-8 and numeric boundaries, zero/empty presence, unknown fields, unsupported operations/versions, duplicate-field semantics, and older/newer additive-schema fixtures. Do not assume Protobuf serialization is canonical or compare arbitrary encodings byte-for-byte. |
 | Domain | Second registered class, metadata, duplicate registration, factory failure, stateful methods, wrong arguments, overflow without mutation, independent instances, stale IDs, ownership, quotas. |
 | Application/client | Dispatch, typed errors, sync/async parity, out-of-order correlation, unknown response IDs, backpressure, deadlines/cancellation races, exactly-once promise completion. |
 | Transport | Immediate/pending connect and I/O, connect race, short transfers, disconnect mid-frame, unavailable/busy pipe, timeout, cancellation followed by completion, pending-operation shutdown. |
@@ -133,7 +145,19 @@ Use readiness/completion signals and test deadlines instead of timing-sensitive 
 
 ## 6. Build, CI, and API documentation
 
-Use target-scoped language standards, warnings, include paths, dependencies, and sanitizer flags. Provide configure/build/test presets and clean-checkout CLI instructions. Pin test/JSON dependencies by revision/hash and document an offline cache path. Do not commit downloads or binaries. Export a real compilation database using Ninja/Clang for clang-tidy.
+Use target-scoped language standards, warnings, include paths, dependencies, and sanitizer flags. Provide configure/build/test presets and clean-checkout CLI instructions. Pin Protobuf, GoogleTest, and their transitive sources by revision/hash and document an offline cache path. Do not commit downloads or binaries. Export a real compilation database using Ninja/Clang for clang-tidy.
+
+### Upstream dependency integration
+
+Use the official [protocolbuffers/protobuf](https://github.com/protocolbuffers/protobuf) and [google/googletest](https://github.com/google/googletest) implementations. Both provide CMake integration; PipeForge owns its schemas, adapters, and tests. No custom Protobuf parser, byte packer, or testing framework is planned.
+
+- Centralize acquisition in `cmake/Dependencies.cmake` using CMake FetchContent with immutable revisions or verified archive hashes. Select supported releases during M1/M2, record their licenses/notices, and update them through reviewed changes. Do not fetch moving branches or resolve unspecified system packages silently.
+- Pin the compatible Abseil and other transitive inputs required by the selected Protobuf release. Declare/reuse their upstream CMake targets before configuring Protobuf where necessary; audit fallback downloads and prevent unpinned configure-time network access. FetchContent alone is not a dependency lockfile.
+- Build the official Protobuf runtime statically (`protobuf_BUILD_SHARED_LIBS=OFF`) and build `protoc` from the same pinned release. Disable upstream examples/tests in normal consumer builds. GoogleTest is test-only and links through `GTest::gtest_main` and CTest discovery. Align MSVC runtime selection, architecture, and Debug/Release settings across project and dependencies; a static library does not require a static C runtime.
+- Compile `.proto` files through the selected upstream CMake generation helpers or explicit custom commands depending on the `protoc` target. Put generated `.pb.h`/`.pb.cc` files under the build tree and model generation dependencies explicitly for safe parallel builds. Commit schemas and build integration, not generated source or downloaded dependency trees.
+- Protobuf C++ requires matching generated-code/runtime versions and offers no ABI stability across releases. Keep compiler, generated code, and runtime pinned together; do not mix an arbitrary installed `protoc` with another runtime. This build constraint is separate from schema-level wire compatibility between processes.
+- Provide a documented prepopulated FetchContent source/cache path for offline builds and CI caches keyed by dependency revisions, compiler, architecture, runtime choice, and sanitizer configuration. Native Windows x64/Linux builds are the baseline; future cross-compilation requires a host-runnable `protoc` of the matching version.
+- Apply project warnings-as-errors, formatting, clang-tidy rules, and Doxygen completeness checks to maintained project code, excluding upstream/generated implementation code. Continue instrumenting dependencies where compatible with sanitizer builds so decoding paths receive coverage. CI must verify clean schema generation, static linking, both consumers, and intentional version-mismatch failure.
 
 | Required CI job | Checks |
 | --- | --- |
@@ -149,7 +173,7 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
-Document public interfaces with Doxygen comments describing purpose, parameters, returns/errors, ownership, thread safety, cancellation, and side effects. Explain non-obvious protocol/security/lifetime choices near code. Avoid comments that merely restate statements. Keep code and documentation in English to match the challenge.
+Document public interfaces with Doxygen comments describing purpose, parameters, returns/errors, ownership, thread safety, cancellation, and side effects. Explain non-obvious protocol/security/lifetime choices near code. Avoid comments that merely restate statements. Keep code and documentation in English for consistency across the project.
 
 Generated HTML artifacts are the initial deliverable. GitHub Pages is the preferred optional published API reference. A wiki summary is optional: confirm wiki availability and authentication, generate into a temporary checkout, and update generated pages only from trusted branch builds or manual dispatch. Do not assume `GITHUB_TOKEN` can write to the separate wiki repository. Publishing setup must not block required build/test validation.
 
@@ -158,8 +182,8 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | Milestone | Work and test-first focus | Exit criteria |
 | --- | --- | --- |
 | M0: planning, this change | Audit, requirement mapping, replacement decisions, ignore rules, remove `README.docx`. | Reviewable plan and explicit scope; stage intended files without committing. |
-| M1: build and test harness | Root CMake/presets, minimal separate executable targets, GoogleTest/CTest, warnings, formatting, initial build CI. Remove solution/project/PCH dependencies as replacement targets become viable; untrack generated `.vs`, `Debug`, and `VS Build` outputs. | Clean checkout builds/tests without an IDE; generated outputs are untracked. Do not claim feature parity yet. |
-| M2: protocol | Version-1 schemas and errors; malformed-input/framing tests before implementation; JSON dependency, tidy, sanitizers, fuzz harness. | Bounds enforced before unbounded allocation; protocol tests and fuzz smoke pass. |
+| M1: build and test harness | Root CMake/presets, pinned upstream dependency acquisition, minimal separate executable targets, GoogleTest/CTest, warnings, formatting, initial build CI. Remove solution/project/PCH dependencies as replacement targets become viable; untrack generated `.vs`, `Debug`, and `VS Build` outputs. | Clean checkout builds/tests without an IDE; generated outputs are untracked. Do not claim feature parity yet. |
+| M2: protocol | Version-1 `.proto` schemas and typed errors; malformed-input/framing tests before implementation; official pinned Protobuf/protoc integration, static `pipeforge-protocol` library linked by both consumers, tidy, sanitizers, fuzz harness, representative size/performance baseline. | Bounded parsing and semantic validation pass; clean parallel generation and both consumer links succeed; protocol tests and fuzz smoke pass; measurements documented without assumed speedups. |
 | M3: domain/services | Typed repositories, registry/factories/metadata, Counter and second test type, object lifecycle, dispatcher. | In-process R3/R4/R6/R7/R8 tests, including ownership/quota failures. |
 | M4: Windows IPC | RAII wrappers, DACL, framing, overlapped accept/read/write, deadlines, cancellation, bounded sessions, shutdown. | Real transport/failure tests and pending-operation cleanup pass under ASan. |
 | M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI, process tests. | Separate processes satisfy R1-R8, including simultaneous mixed-style sessions; superseded legacy code removed. |
@@ -171,13 +195,17 @@ Completion requires every R1-R8 process acceptance test, negative/lifecycle test
 
 ## 8. Scope and review points
 
-Working assumptions are Windows x64, local same-user IPC, process-lifetime storage, session ownership, server-startup registration, C++20, JSON, and bounded multi-client operation. These are not extra challenge rules. Revisit them if a concrete use case requires persistence, shared objects, client-defined executable classes, another platform, or legacy interoperability; update tests and the security model before extending scope.
+Working assumptions are Windows x64, local same-user IPC, process-lifetime storage, session ownership, server-startup registration, C++20, official Protobuf binary serialization through a common static library, and bounded multi-client operation. These are architectural scope decisions, not additional functional requirements. Revisit them if a concrete use case requires persistence, shared objects, client-defined executable classes, another platform, or legacy interoperability; update tests and the security model before extending scope.
 
 The main risks are cancellation lifetime errors, ambiguous custom-class semantics, and unnecessary framework complexity. Bound domain methods, prove extensibility with a second type, and retain the smallest architecture that passes acceptance tests.
 
 ## 9. Primary technical references
 
 Verify toolchain-specific details again during implementation:
+
+- [Protobuf CMake build documentation](https://github.com/protocolbuffers/protobuf/blob/main/cmake/README.md) and [upstream build options](https://github.com/protocolbuffers/protobuf/blob/main/CMakeLists.txt) inform runtime/compiler integration and transitive dependency handling. Lock exact revisions when implementing.
+- [Protobuf encoding](https://protobuf.dev/programming-guides/encoding/) describes wire types, integer encoding, and duplicate-field semantics; [C++ version compatibility](https://protobuf.dev/support/cross-version-runtime-guarantee/#c-and-rust-specific-guarantees) requires matching generated code and runtime.
+- [GoogleTest CMake quickstart](https://google.github.io/googletest/quickstart-cmake.html) documents FetchContent, test target linking, and CTest discovery.
 
 - [Microsoft: synchronous and overlapped pipe I/O](https://learn.microsoft.com/en-us/windows/win32/ipc/synchronous-and-overlapped-input-and-output) explains completion and overlapped state.
 - [Microsoft: named-pipe security/access rights](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights) describes security descriptors and access checks. The explicit DACL above is a project policy based on that model.
