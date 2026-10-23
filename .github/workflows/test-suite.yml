@@ -13,13 +13,16 @@ on:
         type: boolean
         default: true
 
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 3
+
 permissions:
   contents: read
 
 jobs:
   test:
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:

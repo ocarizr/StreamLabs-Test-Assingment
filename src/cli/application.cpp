@@ -1,6 +1,7 @@
 #include "pipeforge/application.hpp"
 
 #include "pipeforge/diagnostics.hpp"
+#include "pipeforge/protocol.hpp"
 #include "pipeforge/version.hpp"
 
 #include <ostream>
@@ -20,6 +21,7 @@ int print_command(std::string_view name,
 
     output << "Usage: " << name << " [--log-file PATH] [--trace-file PATH] [--help | --version]\n"
            << "Profiling: " << (profiling_enabled ? "enabled" : "disabled") << '\n'
+           << "Protocol: " << protocol::supported_version() << " (Protobuf)\n"
            << "IPC is not implemented in this build infrastructure milestone.\n";
     return 0;
 }

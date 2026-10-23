@@ -1,0 +1,47 @@
+name: Protocol fuzzing
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: '30 3 * * 0'
+permissions:
+  contents: read
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 3
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      FUZZ_SECONDS: ${{ github.event_name == 'schedule' && '600' || '30' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build instrumented portable decoder with Clang
+        run: |
+          clang++ --version
+          cmake --preset linux-debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang \
+            -DPIPEFORGE_SANITIZERS=ON -DPIPEFORGE_BUILD_FUZZER=ON
+          cmake --build --preset linux-debug --target pipeforge-protocol-fuzzer pipeforge-protocol-tests
+          ctest --preset linux-debug -R '^(Protocol|Framing)'
+      - name: Fuzz valid payload seeds and stream frames
+        run: |
+          python3 scripts/prepare_fuzz_corpus.py --output build/fuzz-corpus
+          mkdir -p build/fuzz-artifacts
+          ./build/linux-debug/tests/pipeforge-protocol-fuzzer build/fuzz-corpus \
+            -max_total_time="$FUZZ_SECONDS" -max_len=1048580 -timeout=5 \
+            -rss_limit_mb=2048 -artifact_prefix=build/fuzz-artifacts/ > build/fuzz.log 2>&1
+          tail -n 20 build/fuzz.log
+      - name: Preserve fuzz log and regression artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: protocol-fuzz-results
+          path: |
+            build/fuzz.log
+            build/fuzz-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,4 +1,27 @@
 include(GoogleTest)
+add_library(pipeforge-fuzz-harness STATIC fuzz/protocol_fuzz.cpp)
+target_link_libraries(pipeforge-fuzz-harness PUBLIC pipeforge-protocol)
+pipeforge_project_options(pipeforge-fuzz-harness)
+add_executable(pipeforge-protocol-tests unit/protocol_tests.cpp unit/fuzz_smoke_tests.cpp)
+target_link_libraries(pipeforge-protocol-tests PRIVATE pipeforge-fuzz-harness)
+target_link_libraries(pipeforge-protocol-tests PRIVATE pipeforge-protocol protobuf::libprotobuf GTest::gtest_main)
+target_include_directories(pipeforge-protocol-tests SYSTEM PRIVATE "${protocol_generated}")
+add_dependencies(pipeforge-protocol-tests pipeforge-wire)
+pipeforge_project_options(pipeforge-protocol-tests)
+gtest_discover_tests(pipeforge-protocol-tests DISCOVERY_TIMEOUT 30 PROPERTIES LABELS unit)
+if(PIPEFORGE_BUILD_FUZZER)
+    target_link_options(pipeforge-protocol INTERFACE -fsanitize=fuzzer-no-link)
+    target_compile_options(pipeforge-protocol PRIVATE -fsanitize=fuzzer-no-link)
+    target_compile_options(pipeforge-wire PRIVATE -fsanitize=fuzzer-no-link)
+    target_compile_options(libprotobuf PRIVATE -fsanitize=fuzzer-no-link)
+    target_link_options(libprotobuf INTERFACE -fsanitize=fuzzer-no-link)
+    target_compile_options(pipeforge-fuzz-harness PRIVATE -fsanitize=fuzzer-no-link)
+    add_executable(pipeforge-protocol-fuzzer fuzz/libfuzzer_entry.cpp)
+    target_link_libraries(pipeforge-protocol-fuzzer PRIVATE pipeforge-fuzz-harness)
+    pipeforge_project_options(pipeforge-protocol-fuzzer)
+    target_compile_options(pipeforge-protocol-fuzzer PRIVATE -fsanitize=fuzzer)
+    target_link_options(pipeforge-protocol-fuzzer PRIVATE -fsanitize=fuzzer)
+endif()
 add_executable(pipeforge-cli-tests unit/application_tests.cpp unit/diagnostics_tests.cpp
     unit/diagnostics_behavior_tests.cpp unit/profiling_disabled_tests.cpp)
 set_source_files_properties(unit/profiling_disabled_tests.cpp PROPERTIES COMPILE_DEFINITIONS PIPEFORGE_DISABLE_PROFILING)
@@ -19,6 +42,15 @@ foreach(role IN ITEMS client server)
 endforeach()
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+FetchContent_GetProperties(protobuf)
+FetchContent_GetProperties(absl)
+add_test(NAME protocol-toolchain COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_SOURCE_DIR}/tests/integration/check_protocol_toolchain.py"
+    --protoc "$<TARGET_FILE:protobuf::protoc>" --compiler "${CMAKE_CXX_COMPILER}"
+    --include "${protocol_generated}" --include "${protobuf_SOURCE_DIR}/src"
+    --include "${protobuf_SOURCE_DIR}/third_party/utf8_range"
+    --include "${absl_SOURCE_DIR}")
+set_tests_properties(protocol-toolchain PROPERTIES TIMEOUT 150 LABELS integration)
 add_test(NAME release-tools COMMAND "${Python3_EXECUTABLE}" -m unittest discover
     -s "${CMAKE_SOURCE_DIR}/tests/tools" -v)
 set_tests_properties(release-tools PROPERTIES TIMEOUT 60 LABELS unit)

@@ -44,3 +44,8 @@ ReflowComments: true
 MaxEmptyLinesToKeep: 1
 SeparateDefinitionBlocks: Always
 InsertNewlineAtEOF: true
+---
+Language: Proto
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2

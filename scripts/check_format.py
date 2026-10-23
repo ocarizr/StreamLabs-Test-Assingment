@@ -20,13 +20,14 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     sources = sorted(
         path
-        for directory in ("apps", "include", "src", "tests")
+        for directory in ("apps", "include", "src", "tests", "benchmarks")
         for path in (root / directory).rglob("*")
         if path.suffix in (".cpp", ".hpp", ".h")
     )
     if not sources:
         parser.error("no maintained C++ sources found")
     sources.append(root / "cmake/version.hpp.in")
+    sources.extend(sorted((root / "proto").rglob("*.proto")))
     if arguments.fix:
         subprocess.run([arguments.clang_format, "-i", *map(str, sources)], check=True)
         for source in sources:
