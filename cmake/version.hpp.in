@@ -1,0 +1,11 @@
+#ifndef PIPEFORGE_VERSION_HPP
+#define PIPEFORGE_VERSION_HPP
+
+#include <string_view>
+
+namespace pipeforge {
+/** Build version; release builds derive this value from the validated Git tag. */
+inline constexpr std::string_view version = "@PROJECT_VERSION@";
+} // namespace pipeforge
+
+#endif // PIPEFORGE_VERSION_HPP

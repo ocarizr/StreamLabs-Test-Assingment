@@ -1,0 +1,13 @@
+name: Unit tests
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  unit:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      label: unit
+      preset: windows-debug

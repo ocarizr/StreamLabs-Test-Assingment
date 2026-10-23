@@ -1,0 +1,36 @@
+name: Reusable component build
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [windows-debug, windows-release]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build selected executable independently
+        shell: pwsh
+        env:
+          COMPONENT: ${{ inputs.component }}
+          BUILD_PRESET: ${{ matrix.preset }}
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
+          if ($env:COMPONENT -notin @('client', 'server')) { throw 'Invalid component' }
+          cmake --preset $env:BUILD_PRESET -DBUILD_TESTING=OFF
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build --preset $env:BUILD_PRESET --target "pipeforge-$env:COMPONENT"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -1,0 +1,12 @@
+name: Server build
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  server:
+    uses: ./.github/workflows/build-component.yml
+    with:
+      component: server

@@ -1,0 +1,40 @@
+name: Reusable test suite
+
+on:
+  workflow_call:
+    inputs:
+      label:
+        required: true
+        type: string
+      preset:
+        required: true
+        type: string
+      profiling:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build and run only the selected CTest suite
+        shell: pwsh
+        env:
+          TEST_LABEL: ${{ inputs.label }}
+          TEST_PRESET: ${{ inputs.preset }}
+          PROFILING_ENABLED: ${{ inputs.profiling }}
+        run: |
+          . ./scripts/Enter-Toolchain.ps1
+          cmake --preset $env:TEST_PRESET "-DPIPEFORGE_ENABLE_PROFILING=$env:PROFILING_ENABLED"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build --preset $env:TEST_PRESET
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --preset $env:TEST_PRESET -L $env:TEST_LABEL
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

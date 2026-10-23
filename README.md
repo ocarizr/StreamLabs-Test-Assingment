@@ -1,6 +1,16 @@
 # PipeForge
 
+[![Client build](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-client.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-client.yml?query=branch%3Amaster+event%3Apush)
+[![Server build](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-server.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/build-server.yml?query=branch%3Amaster+event%3Apush)
+[![Formatting](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/formatting.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/formatting.yml?query=branch%3Amaster+event%3Apush)
+[![Unit tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/unit-tests.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/unit-tests.yml?query=branch%3Amaster+event%3Apush)
+[![Integration tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/integration-tests.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/integration-tests.yml?query=branch%3Amaster+event%3Apush)
+[![End-to-end tests](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/end-to-end.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/end-to-end.yml?query=branch%3Amaster+event%3Apush)
+[![Static analysis and sanitizers](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/static-analysis.yml/badge.svg?branch=master&event=push)](https://github.com/ocarizr/StreamLabs-Test-Assingment/actions/workflows/static-analysis.yml?query=branch%3Amaster+event%3Apush)
+
 PipeForge is a C++ client/server project for typed interprocess communication and server-side object interaction over Windows named pipes.
+
+Badges report only `push` runs on `master`; they do not report pull-request or feature-branch results. Each links to its own validation workflow. They acquire a status after those workflows first run on master. URLs use the current Git remote and should be updated when the repository is renamed.
 
 ## Requirements
 
@@ -19,9 +29,38 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-The repository contains the legacy Windows implementation and Visual Studio solution. Two incomplete, independent CMake definitions exist; there is no root CMake build, automated test suite, or CI workflow yet.
+M1 provides a root CMake build, separate client/server executable scaffolds, GoogleTest/CTest tests, formatting/spacing checks, clang-tidy analysis, Linux ASan/UBSan with leak detection, spdlog logging, scope profiling, separate CI suites, and tag-triggered release packaging. The executables support `--help` and `--version` with optional diagnostic output; starting IPC is deliberately unavailable until later milestones.
 
-The [modernization plan](docs/modernization-plan.md) defines the proposed architecture, acceptance tests, security model, and implementation sequence. This change establishes the plan. The architecture and tooling below are targets for subsequent implementation, not completed features. The legacy sources were inspected but were not built or executed in this stage.
+The Visual Studio solution and project files have been retired. Sources in `Client/` and `Server/` are retained only as legacy reference and are excluded from the new build, formatting checks, and release packages. Generated IDE/build outputs are no longer tracked.
+
+The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. Protobuf integration starts in M2, domain behavior in M3, and named-pipe transport in M4. See [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md).
+
+## Build and test
+
+Install CMake 3.25+, Ninja, Python 3.10+, and MSVC Build Tools with the x64 C++ workload and Windows SDK. The Visual Studio IDE is optional. In PowerShell from the repository root:
+
+```powershell
+. ./scripts/Enter-Toolchain.ps1
+cmake --preset windows-debug
+cmake --build --preset windows-debug
+ctest --preset windows-debug
+./build/windows-debug/pipeforge-client.exe --help
+./build/windows-debug/pipeforge-server.exe --version
+```
+
+The first test-enabled configure downloads pinned GoogleTest sources. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable scaffold can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5.
+
+The [coding standards](docs/coding-standards.md) define the project's C++20 layout and Core Guidelines policy, analyzer checks, and reviewed exceptions. clang-tidy combines Clang Static Analyzer, bug-prone, CERT, ownership/bounds, and other guideline diagnostics. It detects classes of defects rather than proving that all undefined behavior or leaks are absent.
+
+Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration/end-to-end badges currently cover the scaffold and distribution, not the named-pipe behavior planned for later milestones.
+
+## Logging and profiling
+
+```powershell
+./build/windows-release/pipeforge-client.exe --log-file build/client.log --trace-file build/client.trace.json --version
+```
+
+Logging uses upstream spdlog/fmt; the common diagnostic library writes bounded Chrome Trace files through spdlog sinks. `PIPEFORGE_PROFILE_SCOPE` and `PIPEFORGE_PROFILE_FUNCTION` record RAII durations with thread/process information. Open traces in Perfetto or Chrome's trace viewer. Both file outputs are opt-in; profiling can be compiled out. See [diagnostic usage and lifecycle](docs/diagnostics.md).
 
 ## Design choices
 
@@ -38,12 +77,18 @@ The proposed design replaces the original decisions:
 
 The plan explains the architectural tradeoffs and how server-side class registration satisfies requirements 4, 7, and 8.
 
-## Planned dependencies
+## Dependencies
 
-- [Protocol Buffers](https://github.com/protocolbuffers/protobuf): reuse the official `protoc` generator and C++ runtime for binary serialization; implement only PipeForge schemas, validation, and domain conversion.
-- [GoogleTest](https://github.com/google/googletest): reuse the upstream test framework with CTest, adding GoogleMock only where useful.
+- [spdlog](https://github.com/gabime/spdlog), v1.17.0 at revision `79524ddd08a4ec981b7fea76afd08ee05f83755d`: static runtime logging and profiling file sinks, with bundled fmt.
+- [nlohmann/json](https://github.com/nlohmann/json), v3.12.0 at revision `65ee68451d8eb2b5f3a30b410476ab83deb3289b`: diagnostic trace serialization only.
+- [GoogleTest](https://github.com/google/googletest), v1.17.0 at revision `52eb8108c5bdec04579160ae17225d66034bd723`: test-only, built through CMake FetchContent and integrated with CTest.
+- [Protocol Buffers](https://github.com/protocolbuffers/protobuf), planned for M2: reuse official `protoc` and the C++ runtime; implement only PipeForge schemas, validation, and domain conversion.
 
-Dependencies will be built through CMake from pinned upstream sources. Generated code and downloaded sources remain in the build directory. The plan defines version matching, transitive dependencies, licensing, and reproducibility checks. Binary encoding is intended to reduce message overhead; performance gains will be measured rather than assumed.
+Downloaded sources and generated output remain in the build directory. The plan defines version matching, transitive dependencies, and reproducibility checks. Binary serialization efficiency will be measured rather than assumed.
+
+## Releases
+
+Pushing a version tag such as `V1.0`, `V1.0.0`, or `V1.0.1` publishes a release only if the tagged commit belongs to `master` history. Lowercase `v` is also accepted. The pipeline builds that exact commit and produces three Windows x64 ZIPs: client, server, and bundle. Each contains executable runtime files and required third-party notices. Ordinary branch pushes and pull requests never publish. See [release instructions](docs/releases.md) for examples and failure handling.
 
 ## Assumptions
 

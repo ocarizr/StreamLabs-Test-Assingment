@@ -1,0 +1,13 @@
+name: Integration tests
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
+jobs:
+  integration:
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      label: integration
+      preset: windows-debug
