@@ -53,7 +53,7 @@ Any additional exception needs a narrow named-check suppression with a reason an
 
 ## Runtime safety
 
-The Linux sanitizer job instruments maintained application/test code, generated messages, full Protobuf decoding runtime and utf8_range with ASan/UBSan, enables leak detection and stops on a finding. It runs unit/integration labels. GoogleTest and Abseil themselves are not instrumented. A separate libFuzzer workflow adds decoder coverage and bounded PR/master/weekly fuzzing. These Linux jobs do not cover Windows named-pipe operations; Windows transport/sanitizer tests arrive with that implementation.
+The Linux Clang sanitizer job instruments the entire build with ASan/UBSan, including maintained code, generated messages, Protobuf, libprotoc/protoc, Abseil, UTF-8, logging and GoogleTest. Compile/link policy is shared before dependency configuration to preserve Protobuf's ASan-dependent message layout. It enables leak detection, stops on a finding and runs unit/integration labels. GCC remains in compiler-compatibility CI; its UBSan configuration is rejected because the pinned Abseil triggers [upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634). A separate libFuzzer workflow adds decoder coverage and bounded PR/master/weekly fuzzing. These Linux jobs do not cover Windows named-pipe operations; Windows transport/sanitizer tests arrive with that implementation.
 
 Static analysis and sanitizers cover different paths and classes of defects. Safe ownership, protocol limits, negative tests, and review remain necessary. Future IPC changes must add real timeout, partial-transfer, cancellation, disconnect, and shutdown tests.
 

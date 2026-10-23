@@ -42,6 +42,11 @@ foreach(role IN ITEMS client server)
 endforeach()
 
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+add_test(NAME sanitizer-configuration COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_SOURCE_DIR}/tests/integration/check_sanitizer_configuration.py"
+    --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}"
+    --build "${CMAKE_BINARY_DIR}" --enabled "$<BOOL:${PIPEFORGE_SANITIZERS}>")
+set_tests_properties(sanitizer-configuration PROPERTIES TIMEOUT 120 LABELS integration)
 FetchContent_GetProperties(protobuf)
 FetchContent_GetProperties(absl)
 add_test(NAME protocol-toolchain COMMAND "${Python3_EXECUTABLE}"

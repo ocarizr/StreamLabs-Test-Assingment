@@ -1,11 +1,6 @@
 # Apply strict flags only to code maintained in this repository.
 function(pipeforge_project_options target)
     target_compile_features(${target} PUBLIC cxx_std_20)
-    if(PIPEFORGE_SANITIZERS)
-        target_compile_options(${target} PRIVATE -fsanitize=address,undefined
-            -fno-omit-frame-pointer -fno-sanitize-recover=all)
-        target_link_options(${target} PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all)
-    endif()
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc /utf-8)
         if(PIPEFORGE_WARNINGS_AS_ERRORS)

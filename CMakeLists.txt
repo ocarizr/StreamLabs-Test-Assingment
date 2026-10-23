@@ -16,7 +16,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(PIPEFORGE_WARNINGS_AS_ERRORS "Treat maintained project warnings as errors" ON)
-option(PIPEFORGE_SANITIZERS "Enable ASan/UBSan (including supported leak detection)" OFF)
+option(PIPEFORGE_SANITIZERS "Enable Linux Clang ASan/UBSan (including leak detection)" OFF)
 option(PIPEFORGE_ENABLE_PROFILING "Compile profiling scope macros into the application" ON)
 option(PIPEFORGE_BUILD_FUZZER "Build the Linux Clang libFuzzer decoder harness" OFF)
 option(PIPEFORGE_BUILD_BENCHMARKS "Build non-gating protocol measurements" OFF)
@@ -25,10 +25,13 @@ if(PIPEFORGE_BUILD_FUZZER AND (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR
     message(FATAL_ERROR "libFuzzer requires Linux Clang with PIPEFORGE_SANITIZERS=ON")
 endif()
 if(PIPEFORGE_SANITIZERS AND
-    (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$"))
-    message(FATAL_ERROR "The combined sanitizer configuration requires GCC/Clang on Linux")
+    (NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+    message(FATAL_ERROR "The combined sanitizer configuration requires Linux Clang; "
+        "GCC/UBSan cannot compile the pinned Abseil constexpr hash policy "
+        "(https://github.com/abseil/abseil-cpp/issues/1634)")
 endif()
 
+include(cmake/Sanitizers.cmake)
 include(CTest)
 if(PIPEFORGE_BUILD_FUZZER AND NOT BUILD_TESTING)
     message(FATAL_ERROR "PIPEFORGE_BUILD_FUZZER requires BUILD_TESTING=ON")

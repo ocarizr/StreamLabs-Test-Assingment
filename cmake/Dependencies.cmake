@@ -60,16 +60,6 @@ function(pipeforge_protocol_dependencies)
             DIRECTORY "${protobuf_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS /wd4715)
         target_compile_options(libprotoc PRIVATE /wd5287)
     endif()
-    foreach(target IN ITEMS libprotobuf utf8_validity utf8_range)
-        if(PIPEFORGE_SANITIZERS)
-            target_compile_options(${target} PRIVATE -fsanitize=address,undefined
-                -fno-omit-frame-pointer -fno-sanitize-recover=all)
-        endif()
-    endforeach()
-    if(PIPEFORGE_SANITIZERS)
-        # protoc also links this instrumented static runtime during generation.
-        target_link_options(libprotobuf INTERFACE -fsanitize=address,undefined -fno-sanitize-recover=all)
-    endif()
     foreach(notice IN ITEMS "${protobuf_SOURCE_DIR}/LICENSE"
             "${protobuf_SOURCE_DIR}/third_party/utf8_range/LICENSE" "${absl_SOURCE_DIR}/LICENSE")
         file(READ "${notice}" content)

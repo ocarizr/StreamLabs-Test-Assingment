@@ -90,12 +90,12 @@ Use a matching clang-cl/clang-tidy/SDK environment. The analysis script supports
 On Linux, the runtime safety configuration is:
 
 ```sh
-cmake --preset linux-debug -DPIPEFORGE_SANITIZERS=ON
+cmake --preset linux-debug -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DPIPEFORGE_SANITIZERS=ON
 cmake --build --preset linux-debug
 ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --preset linux-debug -L 'unit|integration'
 ```
 
-The combined sanitizer option is intentionally rejected on Windows and unsupported compilers. It also instruments the full Protobuf runtime and UTF-8 decoder, with linker requirements propagated to protoc. Linux instrumentation does not cover Win32 named-pipe code. See the coding standards for check coverage and exceptions.
+The combined sanitizer option requires Linux Clang. GCC remains covered by the normal compiler-compatibility build; GCC/UBSan cannot compile the pinned Abseil constexpr hash policy ([upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634)). Sanitizer compile/link options apply before any targets are created, including Protobuf, libprotoc/protoc, Abseil, UTF-8, logging and test dependencies. Protobuf 36.2 changes its message layout under ASan, so mixing instrumented and uninstrumented consumers is incompatible. No sanitizer checks are disabled. Linux instrumentation does not cover Win32 named-pipe code. See the coding standards for check coverage and exceptions.
 
 Windows builds use the static MSVC CRT consistently across application and test libraries. Runtime ZIPs contain executables plus `THIRD-PARTY-NOTICES.txt`; spdlog/fmt/JSON are statically linked and add no runtime DLLs. A later dynamic dependency must extend the installation/manifest and isolated extraction tests. [Diagnostic options](diagnostics.md) document logs, profiling macros, lifecycle, and `PIPEFORGE_ENABLE_PROFILING=OFF`.
 
