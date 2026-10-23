@@ -29,6 +29,7 @@ The proposed design replaces the original decisions:
 
 - Build separate client and server executables with a root CMake project, Ninja presets, C++20, and a Windows SDK toolchain without requiring the Visual Studio IDE.
 - Separate the protocol, Windows pipe transport, client API, server services, and domain objects. Share serialized value contracts between processes.
+- Use Google's existing C++ Protocol Buffers implementation, with `.proto` schemas and generated codecs in a `pipeforge-protocol` static library linked by both executables. Keep explicit length framing over named pipes; gRPC is unnecessary for this design.
 - Use one request dispatcher and one overlapped transport implementation. Synchronous calls wait on the same operation used by the asynchronous API.
 - Register trusted C++ classes on the server through factories and metadata. Object state and method execution remain on the server; clients receive IDs and value snapshots.
 - Start with bounded, in-memory storage. A database and persistence across server restarts are not required by the project.
@@ -36,6 +37,13 @@ The proposed design replaces the original decisions:
 - Develop behavior through TDD. Validate formatting, static analysis, memory checks, real pipe integration, and generated API documentation in CI.
 
 The plan explains the architectural tradeoffs and how server-side class registration satisfies requirements 4, 7, and 8.
+
+## Planned dependencies
+
+- [Protocol Buffers](https://github.com/protocolbuffers/protobuf): reuse the official `protoc` generator and C++ runtime for binary serialization; implement only PipeForge schemas, validation, and domain conversion.
+- [GoogleTest](https://github.com/google/googletest): reuse the upstream test framework with CTest, adding GoogleMock only where useful.
+
+Dependencies will be built through CMake from pinned upstream sources. Generated code and downloaded sources remain in the build directory. The plan defines version matching, transitive dependencies, licensing, and reproducibility checks. Binary encoding is intended to reduce message overhead; performance gains will be measured rather than assumed.
 
 ## Assumptions
 
