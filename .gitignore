@@ -1,0 +1,50 @@
+# Out-of-source builds and generated packages
+/build/
+/out/
+/install/
+/dist/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+CMakeUserPresets.json
+
+# IDE state and legacy build output
+.vs/
+.vscode/
+*.user
+*.suo
+**/Debug/
+**/Release/
+/VS Build/
+*.obj
+*.o
+*.pch
+*.pdb
+*.idb
+*.ilk
+*.tlog/
+*.exe
+*.dll
+*.lib
+*.a
+
+# Generated documentation, coverage, and local tools
+/docs/generated/
+/coverage/
+/test-results/
+/.tools/
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+
+# Local editor and operating-system files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
