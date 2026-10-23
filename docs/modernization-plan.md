@@ -1,8 +1,8 @@
-# C++ named-pipe modernization plan
+# PipeForge modernization plan
 
 Status: proposed implementation baseline. Date: 2026-10-23.
 
-This stage reviews the repository and defines the work. It does not implement the replacement application, tests, CMake migration, or GitHub Actions workflows. R1-R8 refer to the unchanged numbered challenge requirements in the README. These decisions replace the legacy design choices and assumptions.
+This stage reviews the repository and defines the work. It does not implement the replacement application, tests, CMake migration, or GitHub Actions workflows. R1-R8 refer to the numbered functional requirements in the README. These decisions replace the legacy design choices and assumptions.
 
 ## 1. Source-review findings
 
@@ -56,7 +56,7 @@ Proposed layout, to be created during implementation:
 
 ```text
 CMakeLists.txt / CMakePresets.json
-include/streamlabs/         Public value contracts and client API
+include/pipeforge/          Public value contracts and client API
 src/protocol/              Serialization, framing, validation
 src/domain/                Registry, values, object store
 src/server/                Application services and request dispatch
@@ -71,6 +71,8 @@ docs/                      Architecture, protocol, usage, Doxygen
 .github/workflows/         Build, analysis, sanitizers, documentation
 ```
 
+Use `PipeForge` as the CMake project name and `pipeforge` as the public C++ namespace. The future executable targets are `pipeforge-client` and `pipeforge-server`.
+
 Domain code has no transport/client/Win32 dependencies. Protocol code depends on value contracts; transport moves bytes without interpreting business operations. Server services depend on narrow repository contracts and the class registry. Entry points compose implementations. Client links contracts and transport, not server implementation.
 
 Apply SOLID through separate responsibilities, extensibility by registration, consistent lifetime/error contracts, small interfaces, and injected I/O dependencies. Apply DRY to codecs, validation, dispatch, and error translation. Avoid an interface for every class or abstractions for hypothetical backends.
@@ -79,7 +81,7 @@ Use Factory/Registry for classes, Repository for stored state, Adapter for Win32
 
 ### Wire contract
 
-- One local duplex endpoint, initially `\\.\pipe\streamlabs-assignment-v1`. Tests use unique names and explicit readiness signals.
+- One local duplex endpoint, initially `\\.\pipe\pipeforge-v1`. Tests use unique names and explicit readiness signals.
 - Byte-mode pipe with a 4-byte unsigned little-endian payload length followed by UTF-8 JSON. Request envelope: `version`, `request_id`, `operation`, `arguments`. Response: echoed ID plus either `result` or `error`.
 - Initially use nlohmann/json, pinned to a reviewed release at implementation time. Validate schemas without implicit coercion; reject duplicate keys and unknown envelope fields. Enforce nesting bounds before constructing an unbounded object tree. Do not hand-roll JSON parsing.
 - Values carry explicit type tags. Encode int64 values as canonical decimal strings to prevent precision loss in JSON consumers. Specify finite-double round trips, UTF-8 validity, and embedded-NUL handling in tests.
@@ -149,7 +151,7 @@ ASan and TSan run separately. Do not promise Windows TSan coverage: Windows is a
 
 Validate pull requests and pushes; scheduled fuzzing complements these checks. Use job timeouts, minimal permissions, dependency caches keyed by pinned inputs, and actions pinned to reviewed commit SHAs. Untrusted pull requests receive no publishing credentials. Never execute contribution code with write permissions through `pull_request_target`.
 
-Document public interfaces with Doxygen comments describing purpose, parameters, returns/errors, ownership, thread safety, cancellation, and side effects. Explain non-obvious protocol/security/lifetime choices near code. Avoid comments that merely restate statements. Keep code and documentation in English to match the challenge.
+Document public interfaces with Doxygen comments describing purpose, parameters, returns/errors, ownership, thread safety, cancellation, and side effects. Explain non-obvious protocol/security/lifetime choices near code. Avoid comments that merely restate statements. Keep code and documentation in English for consistency across the project.
 
 Generated HTML artifacts are the initial deliverable. GitHub Pages is the preferred optional published API reference. A wiki summary is optional: confirm wiki availability and authentication, generate into a temporary checkout, and update generated pages only from trusted branch builds or manual dispatch. Do not assume `GITHUB_TOKEN` can write to the separate wiki repository. Publishing setup must not block required build/test validation.
 
@@ -171,7 +173,7 @@ Completion requires every R1-R8 process acceptance test, negative/lifecycle test
 
 ## 8. Scope and review points
 
-Working assumptions are Windows x64, local same-user IPC, process-lifetime storage, session ownership, server-startup registration, C++20, JSON, and bounded multi-client operation. These are not extra challenge rules. Revisit them if a concrete use case requires persistence, shared objects, client-defined executable classes, another platform, or legacy interoperability; update tests and the security model before extending scope.
+Working assumptions are Windows x64, local same-user IPC, process-lifetime storage, session ownership, server-startup registration, C++20, JSON, and bounded multi-client operation. These are architectural scope decisions, not additional functional requirements. Revisit them if a concrete use case requires persistence, shared objects, client-defined executable classes, another platform, or legacy interoperability; update tests and the security model before extending scope.
 
 The main risks are cancellation lifetime errors, ambiguous custom-class semantics, and unnecessary framework complexity. Bound domain methods, prove extensibility with a second type, and retain the smallest architecture that passes acceptance tests.
 

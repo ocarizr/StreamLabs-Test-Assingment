@@ -1,10 +1,10 @@
-# Streamlabs Test Assignment
+# PipeForge
 
-A C++ client/server exercise using named pipes for interprocess communication.
+PipeForge is a C++ client/server project for typed interprocess communication and server-side object interaction over Windows named pipes.
 
 ## Requirements
 
-The original challenge requirements are preserved below:
+The project defines the following functional requirements:
 
 NamedPipe is the only hard requirement for the IPC
 
@@ -31,11 +31,11 @@ The proposed design replaces the original decisions:
 - Separate the protocol, Windows pipe transport, client API, server services, and domain objects. Share serialized value contracts between processes.
 - Use one request dispatcher and one overlapped transport implementation. Synchronous calls wait on the same operation used by the asynchronous API.
 - Register trusted C++ classes on the server through factories and metadata. Object state and method execution remain on the server; clients receive IDs and value snapshots.
-- Start with bounded, in-memory storage. A database and persistence across server restarts are not required by the challenge.
+- Start with bounded, in-memory storage. A database and persistence across server restarts are not required by the project.
 - Use RAII, typed errors for expected failures, and targeted exception handling at I/O adapters where an API actually throws.
 - Develop behavior through TDD. Validate formatting, static analysis, memory checks, real pipe integration, and generated API documentation in CI.
 
-The plan explains tradeoffs, including why receiving and compiling source code is unnecessary for requirements 4, 7, and 8.
+The plan explains the architectural tradeoffs and how server-side class registration satisfies requirements 4, 7, and 8.
 
 ## Assumptions
 
