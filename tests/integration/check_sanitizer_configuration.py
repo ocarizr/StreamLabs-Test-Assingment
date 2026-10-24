@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--build", required=True, type=Path)
     parser.add_argument("--enabled", required=True, choices=("0", "1"))
     parser.add_argument("--windows-asan", default="0", choices=("0", "1"))
+    parser.add_argument("--tsan", default="0", choices=("0", "1"))
     arguments = parser.parse_args()
     policy = Path(__file__).resolve().parents[2] / "cmake/Sanitizers.cmake"
     compile_flags = {
@@ -27,6 +28,7 @@ def main():
         "-fno-sanitize-recover=all",
     }
     link_flags = compile_flags - {"-fno-omit-frame-pointer"}
+    thread_flags = {"-fsanitize=thread", "-fno-omit-frame-pointer"}
 
     # Check the real project too: moving the policy after FetchContent would
     # leave dependency commands inconsistent even if the small fixture passes.
@@ -46,13 +48,17 @@ def main():
 
         for flag in compile_flags:
             expected = arguments.enabled == "1" or (
-                flag == "-fno-omit-frame-pointer" and arguments.windows_asan == "1"
+                flag == "-fno-omit-frame-pointer"
+                and (arguments.windows_asan == "1" or arguments.tsan == "1")
             )
 
             if (flag in entry["command"]) != expected:
                 raise RuntimeError(
                     f"Inconsistent production compile policy ({flag}): {entry['file']}"
                 )
+
+        if ("-fsanitize=thread" in entry["command"]) != (arguments.tsan == "1"):
+            raise RuntimeError(f"Inconsistent production TSan policy: {entry['file']}")
 
     # Build an isolated dependency/compiler/client graph for configure-only checks.
     with tempfile.TemporaryDirectory(prefix="pipeforge-sanitizers-") as directory:
@@ -83,9 +89,10 @@ def main():
         )
 
         # Exercise each sanitizer policy against the same dependency graph.
-        for mode in ("off", "linux", "windows"):
+        for mode in ("off", "linux", "windows", "thread"):
             enabled = mode == "linux"
             windows = mode == "windows"
+            thread = mode == "thread"
             build = Path(directory) / mode
             resource = Path(directory) / f"resource-{mode}"
             libraries = (
@@ -110,6 +117,7 @@ def main():
                     f"-DCMAKE_CXX_COMPILER={arguments.compiler}",
                     f"-DPIPEFORGE_SANITIZERS={'ON' if enabled else 'OFF'}",
                     f"-DPIPEFORGE_WINDOWS_ASAN={'ON' if windows else 'OFF'}",
+                    f"-DPIPEFORGE_TSAN={'ON' if thread else 'OFF'}",
                     f"-DPIPEFORGE_ASAN_RESOURCE_DIR={resource.as_posix()}",
                 ],
                 capture_output=True,
@@ -141,12 +149,22 @@ def main():
                         )
 
                 for flag in compile_flags:
-                    expected = enabled or (windows and flag == "-fno-omit-frame-pointer")
+                    expected = enabled or (
+                        (windows or thread) and flag == "-fno-omit-frame-pointer"
+                    )
 
                     if (flag in entry["command"]) != expected:
                         raise RuntimeError(
                             f"Inconsistent sanitizer compile policy: {entry['file']}"
                         )
+
+                for flag in thread_flags:
+                    expected = thread or (
+                        (enabled or windows) and flag == "-fno-omit-frame-pointer"
+                    )
+
+                    if (flag in entry["command"]) != expected:
+                        raise RuntimeError(f"Inconsistent TSan compile policy: {entry['file']}")
 
             for target in ("protoc", "client"):
                 options = (build / f"{target}.link-options").read_text(encoding="utf-8").split(";")
@@ -167,8 +185,11 @@ def main():
                     if (flag in options) != enabled:
                         raise RuntimeError(f"Inconsistent sanitizer link policy: {target}")
 
+                if ("-fsanitize=thread" in options) != thread:
+                    raise RuntimeError(f"Inconsistent TSan link policy: {target}")
+
     print(
-        "Sanitizer OFF/Linux/Windows compile and link inheritance verified for runtime, protoc and client"
+        "Sanitizer OFF/ASan/UBSan/Windows/TSan inheritance verified for runtime, protoc and client"
     )
 
 

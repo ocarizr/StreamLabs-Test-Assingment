@@ -1,3 +1,6 @@
+/** @file
+ * Correlated application dispatch for one serialized session.
+ */
 #ifndef PIPEFORGE_SERVICES_HPP
 #define PIPEFORGE_SERVICES_HPP
 
@@ -16,6 +19,7 @@ namespace server {
  */
 class dispatcher {
   public:
+    /** Borrow one serialized store and optional diagnostic observer; retain no requests. */
     explicit dispatcher(domain::session_store& store, diagnostic_session* diagnostics = nullptr);
     dispatcher(const dispatcher&) = delete;
     dispatcher& operator=(const dispatcher&) = delete;

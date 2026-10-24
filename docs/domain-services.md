@@ -1,19 +1,21 @@
 # Domain and application services
 
-M3 implements in-process R3/R4/R6/R7/R8 behavior. Windows pipe transport, connection/request scheduling and client futures remain M4/M5 work. The executables still expose the existing help/version/diagnostic commands. There is no IPC demonstration or cross-process acceptance claim yet.
+The domain layer implements registered server objects and bounded session-owned
+storage independently of codecs and I/O. The Windows host composes its dispatcher
+with named pipes; [the client guide](client.md) describes executable usage.
 
 ## Components and ownership
 
 | Target | Responsibility | Dependencies |
 | --- | --- | --- |
 | `pipeforge-contracts` | Shared C++ value contracts and semantic validation | Bundled UTF-8 validator; no generated Protobuf types |
-| `pipeforge-protocol` | M2 codecs and framing | Contracts, generated code and Protobuf runtime |
+| `pipeforge-protocol` | Payload codecs and framing | Contracts, generated code and Protobuf runtime |
 | `pipeforge-domain` | Registry/factories, session-owned repositories, built-in behavior | Contracts only |
 | `pipeforge-services` | Correlated request dispatch, codec-error translation, optional safe diagnostics | Domain and diagnostics |
 
-[contracts.hpp](../include/pipeforge/contracts.hpp) preserves the existing `pipeforge::protocol` type names. [protocol.hpp](../include/pipeforge/protocol.hpp) includes it for source compatibility. Shared identifier/kind validation moved out of the codec so direct domain calls and wire calls follow the same rules. Names are bounded ASCII identifiers; text values preserve valid UTF-8, embedded NULs and empty strings. Numeric values preserve their variant type; doubles must be finite.
+`contracts.hpp` preserves the existing `pipeforge::protocol` type names. `protocol.hpp` includes it for source compatibility. Shared identifier/kind validation moved out of the codec so direct domain calls and wire calls follow the same rules. Names are bounded ASCII identifiers; text values preserve valid UTF-8, embedded NULs and empty strings. Numeric values preserve their variant type; doubles must be finite.
 
-The server composition owns one startup registry and one `identifier_source`, then creates one `session_store` and `server::dispatcher` per session. Registry and ID source outlive every store; stores outlive their dispatchers. Register every class before creating stores and do not mutate, move or replace that registry while stores exist. These objects have no internal synchronization: the M4 host must serialize all domain access across sessions, including ID allocation and disconnect cleanup.
+The server composition owns one startup registry and one `identifier_source`, then creates one `session_store` and `server::dispatcher` per session. Registry and ID source outlive every store; stores outlive their dispatchers. Register every class before creating stores and do not mutate, move or replace that registry while stores exist. These objects have no internal synchronization: the pipe host must serialize all domain access across sessions, including ID allocation and disconnect cleanup.
 
 Each store owns values and `unique_ptr<object>` instances. `close()` is idempotent, destroys all state and makes further operations return `access_denied`. Destruction also releases all instances. Object IDs and value IDs share a server-lifetime monotonic sequence. IDs are nonzero, never reused and exhaust without wrapping; they are predictable identifiers, not authorization credentials. Lookups are restricted to the receiving session's repositories. A foreign, released, stale or wrong-resource ID returns `not_found` without revealing another session's state.
 
@@ -44,7 +46,7 @@ Accounting is deterministic logical accounting, not exact heap measurement:
 - An object costs 128 bytes plus its class-name length and each state's named-value charge (128 bytes plus name length plus value payload charge).
 - Values and objects consume the same session byte budget. Releasing an object returns its charge; growth is checked against the budget before publishing the clone.
 
-Snapshots/replies and temporary clones are additional bounded transient data. Factory execution, allocator overhead, executable code and shared registry metadata are outside session accounting. A host must also bound session count and pending work in M4; the M3 limits do not establish a process-wide heap quota.
+Snapshots/replies and temporary clones are additional bounded transient data. Factory execution, allocator overhead, executable code and shared registry metadata are outside session accounting. A host must also bound session count and pending work; domain limits do not establish a process-wide heap quota.
 
 Values are sorted by ID and classes by name. Cursors are exclusive keys: zero/empty begins a list, unknown well-formed keys seek forward, and zero/empty `next` ends it. A nonterminal cursor is the last returned key. Pages are not snapshots across mutations. Value pages also stop at a conservative 512 KiB logical charge, even when the requested item limit is larger, so maximum-sized text values cannot create an oversized 1 MiB response. Every stored single value fits that page budget.
 
@@ -54,4 +56,4 @@ Values are sorted by ID and classes by name. Cursors are exclusive keys: zero/em
 
 Unknown IDs/classes/members return `not_found`; wrong arguments and malformed direct values return `invalid_request`; quota/ID exhaustion returns `quota_exceeded`; Counter overflow returns `numeric_overflow`. Null factories/clones and invalid implementation output return `internal_failure`. Error text comes from fixed local categories, including when a factory/method supplies its own error text.
 
-Diagnostics remain opt-in through the existing `diagnostic_session`. Dispatch logs only the correlation ID, a locally defined operation name and numeric result category. It never logs class/member names, argument values, snapshots or factory error text. Scope labels are fixed `server.dispatch`. Profiling-disabled builds retain logs and create no trace file. See [M3 verification](m3-verification.md) for executed checks and limits.
+Diagnostics remain opt-in through the existing `diagnostic_session`. Dispatch logs only the correlation ID, a locally defined operation name and numeric result category. It never logs class/member names, argument values, snapshots or factory error text. Scope labels are fixed `server.dispatch`. Profiling-disabled builds retain logs and create no trace file. See [the requirement-to-test mapping](testing.md) for coverage and its limits.

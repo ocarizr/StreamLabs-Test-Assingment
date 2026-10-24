@@ -1,20 +1,20 @@
 # Windows named-pipe transport
 
-M4 provides a Windows x64 transport library and bounded server host. The public
-interfaces are `pipeforge/transport.hpp` and `pipeforge/pipe_server.hpp`. M5 provides [future-based client calls and executable commands](client.md).
+PipeForge provides a Windows x64 transport library and bounded server host. The public
+interfaces are `pipeforge/transport.hpp` and `pipeforge/pipe_server.hpp`. See [future-based client calls and executable commands](client.md).
 
 ## Ownership and dependencies
 
 `pipeforge-transport-core` contains portable endpoint validation and the completion
 policy. `pipeforge-transport` adds Windows byte streams and depends on the shared
 protocol library, without importing domain/services into clients.
-`pipeforge-pipe-server` combines that transport with the M3 dispatcher. The server
+`pipeforge-pipe-server` combines that transport with the domain dispatcher. The server
 executable composes the host through its `--serve` command.
 
 The host owns a frozen startup registry, process-wide object IDs, one worker per
 pipe slot, and a shared stop source. There are 1–4 slots (default four). All secure
 instances exist before `start()` returns. A single domain gate serializes service
-dispatch and session cleanup, preserving M3's ownership and accounting invariants.
+dispatch and session cleanup, preserving domain ownership and accounting invariants.
 Class implementations are trusted, bounded C++ code with no blocking I/O; exceptions
 from custom implementations or allocation failure are not translated into peer
 errors. The only new catch handles OS thread-creation failure and joins any workers
@@ -57,7 +57,7 @@ and [CreateFile security quality of service](https://learn.microsoft.com/en-us/w
 
 ## Framing, limits and errors
 
-The M2 decoder handles split headers/payloads and preserves concatenated frames.
+The incremental decoder handles split headers/payloads and preserves concatenated frames.
 Lengths are checked before payload allocation: 1 MiB maximum payload, with the
 existing codec depth/cardinality/string limits. Native transfers use 16 KiB chunks.
 At most four sessions decode concurrently. Each session executes one request and
@@ -66,9 +66,9 @@ There is no application request queue; kernel buffering applies backpressure.
 These limits bound concurrency and wire sizes, not exact process heap usage.
 
 Fatal framing, truncation and uncorrelatable parse failures close the session.
-Decodable semantic errors use M3's correlated structured response when permitted,
+Decodable semantic errors use the correlated structured response when permitted,
 and the session can continue. Sequential reuse of an ID is valid once the prior
-response finishes; M5 owns client-side outstanding-ID correlation. No transport
+response finishes; The client owns outstanding-ID correlation. No transport
 operation automatically replays a mutation.
 
 Every stream I/O/framing failure is terminal, including timeout/cancellation.
@@ -112,5 +112,4 @@ The unit label includes a controllable completion backend covering cancellation
 races and drain ordering. Windows integration tests cover real pipe framing,
 stateful dispatch, security, connection races, pending read/write cancellation,
 busy endpoints, deadlines, concurrent sessions, abrupt process exit, anchored-name
-reuse and repeated handle-count checks. See [M4 verification](m4-verification.md)
-for executed results and remaining platform checks.
+reuse and repeated handle-count checks. See [the test guide](testing.md) for requirement evidence and platform limits.

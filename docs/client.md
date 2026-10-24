@@ -1,6 +1,6 @@
 # Client API and executable demonstration
 
-M5 composes the M4 transport with a portable future-based client. Separate Windows
+The portable future-based client composes the Windows named-pipe transport. Separate Windows
 client/server processes exercise R1–R8 using the same endpoint and server instance.
 No socket transport, executable upload, gRPC or client-side domain implementation
 is involved.
@@ -13,7 +13,7 @@ Build with the [documented presets](build.md), then start the server in PowerShe
 ./build/windows-debug/pipeforge-server.exe --serve
 ```
 
-The server registers Counter and TextBuffer through the M3 registry and prints
+The server registers Counter and TextBuffer through the class registry and prints
 `READY` only after the secured pipe instances exist. Leave that terminal open. In
 another terminal run any of these commands:
 
@@ -30,7 +30,7 @@ demonstration host, not a Windows service. No command means a usage error; it ne
 silently starts a server.
 
 `--endpoint \\.\pipe\your-name` selects a local ASCII endpoint in both applications.
-`--timeout-ms` accepts 10–60000 (default 5000). On the server this is M4's total
+`--timeout-ms` accepts 10–60000 (default 5000). On the server this is the total
 per-request/idle deadline; on the client it bounds each connection/call, including
 queue time. `--sessions` is server-only and accepts 1–4 (default four). The demo
 needs at least two slots to test isolation; two simultaneous demos need four.
@@ -43,7 +43,7 @@ Logging/profiling remain opt-in:
 ./build/windows-debug/pipeforge-client.exe --demo-mixed --log-file build/client.log --trace-file build/client.trace.json
 ```
 
-The shared M1 diagnostics record safe request IDs and static timing categories
+The shared diagnostics record safe request IDs and static timing categories
 `client.connect`, `client.send`, and `client.receive`; peer payloads and remote error
 messages are not logged. Profiling-disabled builds reject `--trace-file` as before.
 The client closes and joins its workers before the diagnostic session is finalized.
@@ -100,7 +100,7 @@ cannot supply duplicate IDs. The reader resolves futures by ID, allowing out-of-
 replies, and rejects unknown/duplicate IDs, malformed envelopes and unexpected
 outcome variants. Describe/get/create replies also match requested identity/type;
 put replies preserve the supplied typed value. Method/attribute scalar interpretation
-remains part of the caller's typed operation/metadata contract. The M4 server executes
+remains part of the caller's typed operation/metadata contract. The pipe server executes
 one request at a time per session, while different sessions can interleave.
 
 The independent reader is necessary for duplex backpressure: a server returning a
@@ -122,7 +122,7 @@ in slices of at most five milliseconds, alongside request deadlines. A racing re
 may contend with bounded encoding/decoding and thread scheduling; those waits are
 not a cancellation-latency guarantee. The reply path
 rechecks cancellation/deadline before committing success. Kernel cancellation is
-drained using M4's contract and may exceed the deadline; this is not a hard real-time
+drained using the transport contract and may exceed the deadline; this is not a hard real-time
 API. Futures can become ready before the worker finishes its drain, but operation
 storage remains owned until joins.
 
@@ -152,5 +152,5 @@ runtime-only. Existing unit, integration and end-to-end CTest labels remain sepa
 Windows ASan also runs the process acceptance label. Linux tests cover the portable
 client scheduler with controlled peers, not Win32 IPC.
 
-See [M5 verification](m5-verification.md), [Windows transport](windows-transport.md)
-and [the remaining modernization work](modernization-plan.md).
+See [requirement evidence and CI scope](testing.md), [Windows transport](windows-transport.md)
+and [architecture](architecture.md).

@@ -4,7 +4,7 @@
 
 Use the [ISO C++ FAQ on coding standards](https://isocpp.org/wiki/faq/coding-standards) and the [C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines) as references. They are guidance, not an ISO-mandated formatter preset or a complete mechanically enforceable standard. The language build mode is C++20.
 
-PipeForge chooses a documented house style for consistent maintenance. Formatting, semantic analysis, runtime instrumentation, and review serve different purposes; none replaces the others. Upstream/generated code retains its own conventions. Unused legacy sources were removed during the pre-M3 cleanup and remain available in Git history.
+PipeForge chooses a documented house style for consistent maintenance. Formatting, semantic analysis, runtime instrumentation, and review serve different purposes; none replaces the others. Upstream/generated code retains its own conventions.
 
 ## Layout and naming
 
@@ -47,29 +47,45 @@ Reviewed exceptions:
 - The two C++ entry points locally suppress only `bugprone-exception-escape`. Fatal allocation failures during startup remain fatal rather than adding blanket exception recovery; recoverable throwing I/O still belongs at the I/O adapter. Bounds/ownership/analyzer checks remain enabled for those functions.
 - Diagnostic RAII destructors use the same narrow exception-escape exception for unrecoverable allocation exhaustion. spdlog reports file write/flush errors through the session flag; `finish()` must be checked. Profiling macros locally exempt only `cppcoreguidelines-macro-usage` because they must capture lexical scope/function. Other checks remain active.
 
-Protocol binary fixtures locally exempt magic-number warnings; the deterministic regression mutator locally exempts fixed-seed randomness checks because reproducibility is its purpose, not a security source. No production randomness policy is weakened. Benchmark/fuzz entry points use the fatal-allocation policy of other process entry points. Narrow pinned-upstream compiler exceptions are listed in [M2 verification](m2-verification.md); maintained code retains its checks.
+Protocol binary fixtures locally exempt magic-number warnings; the deterministic regression mutator locally exempts fixed-seed randomness checks because reproducibility is its purpose, not a security source. No production randomness policy is weakened. Benchmark/fuzz entry points use the fatal-allocation policy of other process entry points. Narrow pinned-upstream compiler exceptions are listed in [dependency review](third-party.md); maintained code retains its checks. The client's internal promise-completion helper has a documented exception-escape suppression: its mutex/closed-state invariants guarantee exactly-once completion, and a violated promise invariant is fatal rather than translated into an I/O failure.
 
 Any additional exception needs a narrow named-check suppression with a reason and review. Do not disable an entire family to make a build green.
 
 ## Runtime safety
 
-The Linux Clang sanitizer job instruments the entire build with ASan/UBSan, including maintained code, generated messages, Protobuf, libprotoc/protoc, Abseil, UTF-8, logging and GoogleTest. Compile/link policy is shared before dependency configuration to preserve Protobuf's ASan-dependent message layout. It enables leak detection, stops on a finding and runs unit/integration labels. GCC remains in compiler-compatibility CI; its UBSan configuration is rejected because the pinned Abseil triggers [upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634). A separate libFuzzer workflow adds decoder coverage and bounded PR/master/weekly fuzzing. These Linux jobs do not cover Windows named-pipe operations; Windows transport/sanitizer tests arrive with that implementation.
+Whole-build Linux Clang ASan/UBSan instruments maintained code, generated messages,
+Protobuf, protoc, Abseil, UTF-8, diagnostics and tests. Leak detection and findings
+fail the job. A separate TSan build exercises portable client scheduling and
+concurrent diagnostics; ASan and TSan are never combined. GCC remains covered by
+normal compiler compatibility; GCC/UBSan is rejected because the pinned Abseil
+triggers [upstream issue #1634](https://github.com/abseil/abseil-cpp/issues/1634).
 
-Static analysis and sanitizers cover different paths and classes of defects. Safe ownership, protocol limits, negative tests, and review remain necessary. Future IPC changes must add real timeout, partial-transfer, cancellation, disconnect, and shutdown tests.
+Separate Linux libFuzzer runs add coverage-guided decoder testing with bounded
+PR/master/weekly durations. Windows clang-cl ASan covers actual pipe/process
+behavior. Native tests verify partial transfer, deadlines, cancellation/drain,
+peer exit and shutdown. Linux instrumentation does not validate Win32 operations.
+Safe ownership, bounded input, negative tests and review remain necessary.
 
-## Test suites and master badges
+## Validation and documentation
 
-| Workflow | What it validates now |
-| --- | --- |
-| Client build / Server build | Each Windows executable builds independently in Debug and Release without test dependencies. |
-| Formatting | clang-format policy for maintained code. |
-| Unit tests | Protocol semantics/framing, deterministic fuzz invariants, CLI behavior, release rules, tool selection/reporting. |
-| Integration tests | Generated-code/runtime mismatch rejection, executable diagnostics/I/O failures, release provenance in isolated Git repositories. |
-| End-to-end tests | Fresh runtime installation, three ZIPs, exact manifests/notices, isolated extraction, and startup/log/trace parsing with a system-only PATH. |
-| Static analysis and sanitizers | All maintained C++ translation units, analyzer activation probes, and Linux runtime safety checks. |
+[The test guide](testing.md) defines CTest labels, the CI matrix, R1-R8 evidence and
+platform limits. Each workflow keeps its own status; badge images filter
+`branch=master&event=push`. End-to-end process tests run on Windows; Release also
+checks extracted runtime ZIPs. All suites own their temporary state and use bounded
+waits rather than relying on another job's artifacts.
 
-CTest labels are `unit`, `integration`, and `end-to-end`. The last label is available only for Windows Release. The suite workflows reuse build/test plumbing but retain separate workflow status. Selecting an unavailable/empty label fails through CTest's no-tests error policy. End-to-end tests create their own staging/extraction state and do not depend on unit/integration jobs or their artifacts.
+Public interfaces use Doxygen comments describing purpose, ownership, concurrency,
+expected failures, cancellation and side effects. Explain non-obvious invariants
+near the code, especially native I/O lifetime and promise completion. Keep code and
+guides in English. [Doxygen generation](api.md) fails on undocumented public members,
+missing enum descriptions, incomplete supplied parameter docs and invalid references.
+Private/generated/upstream internals are outside the public API reference.
 
-All badge images specify `branch=master&event=push`, and their links filter the same branch/event. They reflect real workflow results after master runs; they are not hardcoded green indicators. Update repository URLs when renaming the remote. See [GitHub badge filtering](https://docs.github.com/en/actions/how-tos/monitor-workflows/add-a-status-badge).
+Python and CMake files separate meaningful phases with blank lines and comments
+that explain their intent. Keep control-flow continuations together and leave a
+blank line after complete blocks before the next logical operation. Formatting
+changes must preserve behavior.
 
-See [LLVM 19 formatting options](https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormatStyleOptions.html) and [clang-tidy checks](https://releases.llvm.org/19.1.0/tools/clang/tools/extra/docs/clang-tidy/checks/list.html) for the tool configuration surface.
+See [LLVM 19 formatting options](https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormatStyleOptions.html)
+and [clang-tidy checks](https://releases.llvm.org/19.1.0/tools/clang/tools/extra/docs/clang-tidy/checks/list.html)
+for the supported configuration surface.

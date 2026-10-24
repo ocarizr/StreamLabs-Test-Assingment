@@ -1,0 +1,31 @@
+name: Dependency review
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: '19 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Verify source pins and query known OSV advisories
+        run: python3 scripts/check_dependencies.py --online --report build/dependency-audit.json
+      - name: Preserve the reviewed source and advisory identities
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: dependency-audit
+          path: build/dependency-audit.json
+          if-no-files-found: warn
+          retention-days: 30

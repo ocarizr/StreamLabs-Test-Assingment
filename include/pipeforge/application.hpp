@@ -1,3 +1,6 @@
+/** @file
+ * Validated console commands and application composition.
+ */
 #ifndef PIPEFORGE_APPLICATION_HPP
 #define PIPEFORGE_APPLICATION_HPP
 
@@ -10,23 +13,28 @@
 namespace pipeforge {
 class diagnostic_session;
 
+/** Validated executable command; no command starts implicitly. */
 enum class application_command : std::uint8_t {
-    help,
-    version,
-    serve,
-    demo_sync,
-    demo_async,
-    demo_mixed
+    help,       ///< Print command usage.
+    version,    ///< Print the linked binary version.
+    serve,      ///< Host registered objects until stdin shutdown.
+    demo_sync,  ///< Run all requirements through blocking calls.
+    demo_async, ///< Run all requirements through future-based calls.
+    demo_mixed, ///< Mix both APIs against the same session.
 };
 
 /** Validated runtime arguments; diagnostic paths are handled by run_application. */
 struct invocation {
-    application_command command = application_command::help;
-    std::wstring endpoint{transport::default_endpoint};
-    std::chrono::milliseconds timeout = transport::default_timeout;
-    std::size_t sessions = transport::max_sessions;
+    application_command command =
+        application_command::help; ///< Selected command after role validation.
+    std::wstring endpoint{
+        transport::default_endpoint}; ///< Validated local ASCII named-pipe endpoint.
+    std::chrono::milliseconds timeout =
+        transport::default_timeout; ///< Per-connect/call interval; server includes idle reads.
+    std::size_t sessions = transport::max_sessions; ///< Maximum simultaneous server pipe slots.
 };
 
+/** Executable-specific composition supplied after command validation. */
 using command_handler = int (*)(const invocation&,
                                 std::ostream&,
                                 std::ostream&,
@@ -37,6 +45,7 @@ int run_client_command(const invocation& options,
                        std::ostream& output,
                        std::ostream& errors,
                        diagnostic_session& diagnostics);
+/** Compose the trusted registry and serve until controller stdin shutdown. */
 int run_server_command(const invocation& options,
                        std::ostream& output,
                        std::ostream& errors,

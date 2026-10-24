@@ -1,3 +1,6 @@
+/** @file
+ * Opt-in process diagnostics and bounded scope profiling.
+ */
 #ifndef PIPEFORGE_DIAGNOSTICS_HPP
 #define PIPEFORGE_DIAGNOSTICS_HPP
 
@@ -12,16 +15,25 @@
 #include <string_view>
 
 namespace pipeforge {
+/** Whether scope recording is compiled into this build. */
 inline constexpr bool profiling_enabled = PIPEFORGE_ENABLE_PROFILING != 0;
+/** Default maximum complete events retained per trace. */
 inline constexpr std::size_t default_trace_event_limit = 100000;
 
-enum class log_level : std::uint8_t { debug, info, warning, error };
+/** Severity for trusted diagnostic messages. */
+enum class log_level : std::uint8_t {
+    debug,   ///< Detailed local control-flow diagnostics.
+    info,    ///< Ordinary lifecycle information.
+    warning, ///< Recoverable condition needing attention.
+    error,   ///< Operation or diagnostic sink failure.
+};
 
 /** Optional explicit output paths; no diagnostics files are created by default. */
 struct diagnostic_options {
-    std::filesystem::path log_file{};
-    std::filesystem::path trace_file{};
-    std::size_t trace_event_limit = default_trace_event_limit;
+    std::filesystem::path log_file{};   ///< Optional append/rotating log path.
+    std::filesystem::path trace_file{}; ///< Optional replaced Chrome Trace JSON path.
+    std::size_t trace_event_limit = default_trace_event_limit; ///< Maximum accepted events; later
+                                                               ///< events are counted as dropped.
 };
 
 /** A diagnostic file could not be opened or its paths are incompatible. */
@@ -41,6 +53,7 @@ class profile_scope;
  */
 class diagnostic_session {
   public:
+    /** Open explicitly requested sinks; throws diagnostic_io_error on path/setup failure. */
     explicit diagnostic_session(std::string_view application,
                                 const diagnostic_options& options = {});
 
@@ -81,6 +94,7 @@ class diagnostic_session {
  */
 class profile_scope {
   public:
+    /** Retain session state and record a bounded trusted label on the current thread. */
     profile_scope(const diagnostic_session& session, std::string_view name);
 
     ~profile_scope();
@@ -104,17 +118,23 @@ class profile_scope {
 // Macro expansion captures the caller's lexical scope/function. One scope per
 // source line; disabled macros do not evaluate either argument.
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
+/** Internal token concatenation after the caller supplies expanded tokens. */
 #define PIPEFORGE_DETAIL_JOIN_IMPL(left, right) left##right
+/** Internal expansion step for unique lexical profiling variable names. */
 #define PIPEFORGE_DETAIL_JOIN(left, right) PIPEFORGE_DETAIL_JOIN_IMPL(left, right)
 #if PIPEFORGE_ENABLE_PROFILING && !defined(PIPEFORGE_DISABLE_PROFILING)
+/** Record a complete event for this lexical scope; disabled builds evaluate no arguments. */
 #define PIPEFORGE_PROFILE_SCOPE(session, name)                                                     \
     const ::pipeforge::profile_scope PIPEFORGE_DETAIL_JOIN(pipeforge_scope_, __LINE__)             \
     {                                                                                              \
         (session), (name)                                                                          \
     }
+/** Profile the enclosing function using its compiler-supplied name. */
 #define PIPEFORGE_PROFILE_FUNCTION(session) PIPEFORGE_PROFILE_SCOPE((session), __func__)
 #else
+/** Record a complete event for this lexical scope; disabled builds evaluate no arguments. */
 #define PIPEFORGE_PROFILE_SCOPE(session, name) static_cast<void>(0)
+/** Profile the enclosing function using its compiler-supplied name. */
 #define PIPEFORGE_PROFILE_FUNCTION(session) static_cast<void>(0)
 #endif
 // NOLINTEND(cppcoreguidelines-macro-usage)

@@ -130,6 +130,17 @@ endforeach()
 # Python-driven checks validate tooling and real-process integration.
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 
+# Offline quality checks do not require a security-service connection.
+add_test(
+    NAME documentation-links
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/check_documentation.py"
+)
+add_test(
+    NAME dependency-pins
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/check_dependencies.py"
+)
+set_tests_properties(documentation-links dependency-pins PROPERTIES TIMEOUT 15 LABELS integration)
+
 if(WIN32)
     add_test(
         NAME ipc-process-acceptance
@@ -150,6 +161,7 @@ add_test(
         --build "${CMAKE_BINARY_DIR}"
         --enabled "$<BOOL:${PIPEFORGE_SANITIZERS}>"
         --windows-asan "$<BOOL:${PIPEFORGE_WINDOWS_ASAN}>"
+        --tsan "$<BOOL:${PIPEFORGE_TSAN}>"
 )
 set_tests_properties(sanitizer-configuration PROPERTIES TIMEOUT 120 LABELS integration)
 

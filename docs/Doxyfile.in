@@ -1,0 +1,32 @@
+# Public project API only; generated protocol and upstream implementation stay internal.
+PROJECT_NAME           = PipeForge
+PROJECT_BRIEF          = "Typed C++ interprocess communication over Windows named pipes"
+OUTPUT_DIRECTORY       = "@PIPEFORGE_API_OUTPUT@"
+INPUT                  = "@PIPEFORGE_DOCUMENTATION_ROOT@/include/pipeforge" \
+                         "@PIPEFORGE_DOCUMENTATION_ROOT@/README.md" \
+                         "@PIPEFORGE_DOCUMENTATION_ROOT@/docs"
+FILE_PATTERNS          = *.hpp *.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE  = "@PIPEFORGE_DOCUMENTATION_ROOT@/README.md"
+STRIP_FROM_PATH        = "@PIPEFORGE_DOCUMENTATION_ROOT@"
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+INTERNAL_DOCS          = NO
+HIDE_UNDOC_MEMBERS      = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_IF_UNDOC_ENUM_VAL = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+WARN_LOGFILE           = "@PIPEFORGE_API_OUTPUT@/warnings.log"
+QUIET                  = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+SOURCE_BROWSER         = YES
+HAVE_DOT               = NO
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+PREDEFINED            = PIPEFORGE_ENABLE_PROFILING=1

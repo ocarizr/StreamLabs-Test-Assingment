@@ -1,3 +1,6 @@
+/** @file
+ * Bounded future-based client scheduling and injected channel contracts.
+ */
 #ifndef PIPEFORGE_CLIENT_HPP
 #define PIPEFORGE_CLIENT_HPP
 
@@ -10,30 +13,34 @@ namespace pipeforge {
 class diagnostic_session;
 
 namespace client {
+/** Admission ceiling for queued and in-flight calls per connection. */
 inline constexpr std::size_t max_pending_calls = 16;
 
+/** Expected local failure category; native details never enter remote replies. */
 enum class failure_kind : std::uint8_t {
-    invalid_request,
-    not_connected,
-    quota_exceeded,
-    timeout,
-    cancelled,
-    disconnected,
-    access_denied,
-    protocol_violation,
-    transport_failure,
-    internal_failure
+    invalid_request,    ///< Local operation or connection configuration is invalid.
+    not_connected,      ///< No usable established client session.
+    quota_exceeded,     ///< Client pending-call admission ceiling reached.
+    timeout,            ///< Absolute deadline expired; sent mutations may have executed.
+    cancelled,          ///< Caller or controller requested cancellation.
+    disconnected,       ///< Peer exited or the session became unusable.
+    access_denied,      ///< Native access policy denied the operation.
+    protocol_violation, ///< Peer framing, correlation or response contract is invalid.
+    transport_failure,  ///< Other typed failure reported by the transport.
+    internal_failure,   ///< Local worker resources or adapter contract failed.
 };
 
 /** Local failures never masquerade as a server response; native codes stay local. */
 struct failure {
-    failure_kind kind = failure_kind::transport_failure;
-    std::uint32_t native_error = 0;
+    failure_kind kind = failure_kind::transport_failure; ///< Stable local failure category.
+    std::uint32_t native_error = 0; ///< Retained native code, zero if no native call failed.
 };
 
 struct connected {};
 
+/** Connection marker or typed local failure. */
 using connect_result = std::variant<connected, failure>;
+/** Correlated protocol response or typed local failure. */
 using call_result = std::variant<protocol::response, failure>;
 
 /**
@@ -49,18 +56,22 @@ class channel {
     channel(channel&&) = delete;
     channel& operator=(channel&&) = delete;
     virtual ~channel() = default;
+    /** Send exactly one complete payload, adding transport framing only once. */
     [[nodiscard]] virtual transport::result<std::size_t> send(std::span<const std::byte> payload,
                                                               transport::deadline until,
                                                               const std::stop_token& stop) = 0;
+    /** Return exactly one owned payload or a typed terminal failure; honor stop/deadline. */
     [[nodiscard]] virtual transport::result<protocol::bytes>
     receive(transport::deadline until, const std::stop_token& stop) = 0;
+    /** Idempotent native cleanup, called only after both I/O directions have returned. */
     virtual void close() noexcept = 0;
 };
 
+/** Injected opener; captures must outlive the connection and obey channel cancellation. */
 using connector = std::function<transport::result<std::unique_ptr<channel>>(
     std::wstring_view, transport::deadline, const std::stop_token&)>;
 
-/** Windows-only adapter: opens the M4 local named-pipe stream, with no socket fallback. */
+/** Windows-only adapter: opens the local named-pipe stream, with no socket fallback. */
 [[nodiscard]] connector named_pipe_connector();
 
 class connection_state;
@@ -82,6 +93,7 @@ class connection_state;
  */
 class connection {
   public:
+    /** Retain the opener and optional borrowed diagnostics; no connection is started. */
     explicit connection(connector open, diagnostic_session* diagnostics = nullptr);
     ~connection();
     connection(const connection&) = delete;
@@ -93,12 +105,14 @@ class connection {
     [[nodiscard]] std::future<connect_result> connect_async(std::wstring endpoint,
                                                             transport::deadline until,
                                                             const std::stop_token& stop = {});
+    /** Blocking wrapper around connect_async with identical deadline/error semantics. */
     [[nodiscard]] connect_result
     connect(std::wstring endpoint, transport::deadline until, const std::stop_token& stop = {});
     /** Admit up to sixteen validated calls; queue time is included in the absolute deadline. */
     [[nodiscard]] std::future<call_result> call_async(protocol::operation operation,
                                                       transport::deadline until,
                                                       const std::stop_token& stop = {});
+    /** Blocking wrapper around call_async; never retries an indeterminate mutation. */
     [[nodiscard]] call_result call(protocol::operation operation,
                                    transport::deadline until,
                                    const std::stop_token& stop = {});

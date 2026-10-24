@@ -1,6 +1,9 @@
 # Version-1 protocol
 
-M2 supplies schemas, value contracts, codecs and stream framing. It performs no pipe I/O and does not implement storage, dispatch or object execution. M3 now implements those in-process services; pipe I/O and process-level client behavior remain M4/M5. The authoritative schema is [protocol.proto](../proto/pipeforge/v1/protocol.proto); the public C++ boundary is [protocol.hpp](../include/pipeforge/protocol.hpp).
+The authoritative schema is `protocol.proto`;
+the public C++ codec boundary is `protocol.hpp`.
+The codec validates owning values and framing without performing pipe I/O,
+storage or server execution. Those responsibilities belong to separate components.
 
 ## Build boundary
 
@@ -20,7 +23,7 @@ const pipeforge::protocol::request message{
 auto encoded = pipeforge::protocol::encode_request(message);
 if (const auto* payload = std::get_if<pipeforge::protocol::bytes>(&encoded)) {
     auto packet = pipeforge::protocol::frame(*payload);
-    // M4 will write the resulting bytes with partial-transfer handling.
+    // A byte transport must write the complete frame with partial-transfer handling.
 }
 ```
 
@@ -30,9 +33,9 @@ Payload decode uses Google's `ArrayInputStream`/`CodedInputStream` with a total-
 
 Both envelopes require explicit version presence with value 1 and a nonzero uint64 correlation ID. IDs are unique among outstanding requests within a session; the future session/client layer enforces uniqueness and response-operation matching. The codec alone has no pending-request table or session authorization state.
 
-`Value` has exactly one alternative: UTF-8 text, signed int64 (`sint64`, ZigZag) or finite double. Empty text, zero integers, zero doubles and negative zero retain their selected type. NaN and infinities are invalid. NUL is permitted in text, but names use `[A-Za-z_][A-Za-z0-9_]*` and at most 128 bytes. Identifiers and stored IDs are data, not filesystem paths. Object IDs and value IDs are nonzero session-local handles; checking ownership belongs to M3/M4.
+`Value` has exactly one alternative: UTF-8 text, signed int64 (`sint64`, ZigZag) or finite double. Empty text, zero integers, zero doubles and negative zero retain their selected type. NaN and infinities are invalid. NUL is permitted in text, but names use `[A-Za-z_][A-Za-z0-9_]*` and at most 128 bytes. Identifiers and stored IDs are data, not filesystem paths. Object IDs and value IDs are nonzero identifiers issued from a server-lifetime sequence; the receiving session's repositories enforce ownership.
 
-| Request | Success outcome | Contract for later dispatch |
+| Request | Success outcome | Dispatch contract |
 | --- | --- | --- |
 | `list_classes` | `classes` | Sorted, unique registered names, exclusive name cursor. |
 | `describe_class` | `description` | Constructor parameters, attributes, methods, parameter/result kinds. |
@@ -47,13 +50,13 @@ Both envelopes require explicit version presence with value 1 and a nonzero uint
 
 Any operation may instead produce `error`. No source code, library path, executable payload, protobuf `Any`, JSON object, function pointer or recursive arbitrary value is accepted. Class names and argument/member names must be valid identifiers; duplicate names in argument/state/metadata collections are rejected. Attribute and method namespaces are separate. Value-kind enums must be one of text/integer/real, and error enums must be a declared nonzero code.
 
-Pages default to 32 entries in the C++ contract; the wire requires an explicit nonzero limit up to 64. Start cursors are zero/empty. Success pages are sorted and unique; a nonfinal `next` cursor equals the final returned ID/name, while zero/empty marks the last page. Empty pages must be final. Storage quota enforcement and deciding whether another page exists are M3 work.
+Pages default to 32 entries in the C++ contract; the wire requires an explicit nonzero limit up to 64. Start cursors are zero/empty. Success pages are sorted and unique; a nonfinal `next` cursor equals the final returned ID/name, while zero/empty marks the last page. Empty pages must be final. The session store enforces quotas and determines whether another page exists.
 
 ## Errors, compatibility and limits
 
-Stable remote error codes are: 1 invalid request, 2 not found, 3 quota exceeded, 4 timeout, 5 cancelled, 6 access denied, 7 transport failure, 8 internal failure, 9 unsupported version, 10 numeric overflow. Messages are bounded UTF-8 text and must be safe server-supplied descriptions. Do not echo raw request data or exception details. M3's Counter arithmetic must check int64 bounds before mutation, return numeric-overflow and retain previous state. The wire encodes integer values with upstream Protobuf integer semantics; this is not a custom overflow/duplicate-field parser.
+Stable remote error codes are: 1 invalid request, 2 not found, 3 quota exceeded, 4 timeout, 5 cancelled, 6 access denied, 7 transport failure, 8 internal failure, 9 unsupported version, 10 numeric overflow. Messages are bounded UTF-8 text and must be safe server-supplied descriptions. Do not echo raw request data or exception details. Counter arithmetic checks int64 bounds before mutation, returning numeric-overflow while retaining previous state. The wire encodes integer values with upstream Protobuf integer semantics; this is not a custom overflow/duplicate-field parser.
 
-Local codec failures distinguish malformed data, invalid fields, unsupported version, resource limits and truncated framing. Framing/parse failures and zero correlation IDs require closing the receiving stream, with no trusted ID. After a complete parse, valid nonzero IDs permit a structured semantic error; `failure.request_id` and `close_session` describe that decision. Outgoing validation failures are reported before writing any frame. Unexpected response correlation or success-outcome mismatch must fail the session at the client layer in M5.
+Local codec failures distinguish malformed data, invalid fields, unsupported version, resource limits and truncated framing. Framing/parse failures and zero correlation IDs require closing the receiving stream, with no trusted ID. After a complete parse, valid nonzero IDs permit a structured semantic error; `failure.request_id` and `close_session` describe that decision. Outgoing validation failures are reported before writing any frame. Unexpected response correlation or success-outcome mismatch terminates the client session.
 
 | Bound | Limit |
 | --- | --- |
@@ -65,7 +68,7 @@ Local codec failures distinguish malformed data, invalid fields, unsupported ver
 | Decoded known message nodes | 4,096 total |
 | Unknown fields/groups | 128 total, recursion bounded |
 
-The byte/recursion bounds apply during parsing; collection/node/unknown-field bounds are checked afterward before conversion/dispatch. A serialized-byte bound is not an exact heap bound: Protobuf may expand many small fields before semantic rejection. Tests include a valid-sized payload with 10,000 tiny entries. Future sessions must bound simultaneous decodes and separately account retained storage. Do not claim this codec enforces the 8 MiB session storage budget.
+The byte/recursion bounds apply during parsing; collection/node/unknown-field bounds are checked afterward before conversion/dispatch. A serialized-byte bound is not an exact heap bound: Protobuf may expand many small fields before semantic rejection. Tests include a valid-sized payload with 10,000 tiny entries. The host bounds simultaneous decodes by its session slots and separately accounts retained storage. Do not claim this codec enforces the 8 MiB session storage budget.
 
 Unknown fields are accepted within these limits and discarded at conversion; they are never echoed. Unset or unknown operation/outcome alternatives are invalid. Protobuf's standard semantics apply: duplicate scalar fields use the last value, repeated embedded messages can merge, and a later distinct oneof alternative replaces the earlier alternative. A custom scanner is deliberately avoided. Never reuse field numbers/names after removal; reserve them, and add fields compatibly. A field addition may be wire-compatible without being understood by an older application. Unsupported major versions are rejected explicitly.
 
@@ -77,6 +80,10 @@ Unit tests exercise every request and response shape, type presence, int64 limit
 
 The Linux Clang libFuzzer workflow applies ASan/UBSan consistently to all compiled targets, including libprotoc/protoc and Abseil, and adds fuzz coverage to the maintained codec/generated messages and full Protobuf runtime. It uses leak detection, runs a 30-second PR/master smoke and a 600-second weekly run, and retains logs/crash inputs. Corpus files are reviewed hexadecimal fixtures, materialized into payload and framed seeds by `scripts/prepare_fuzz_corpus.py`. Local deterministic fuzz smoke is distinct from executing this Linux job.
 
-See [M2 verification and baseline](m2-verification.md) for executed results and their limits. Profiling/logging remain opt-in: protocol functions do no global logging and do not log peer payloads. M3 instruments the service boundary with fixed scope labels and safe IDs/categories; transport/client call sites remain M4/M5 work. No timing thresholds are CI gates. Binary encoding is not compression, and named pipes are local IPC, not a network benchmark.
+Profiling/logging remain opt-in. Protocol functions do no global or payload
+logging; service, transport and client call sites use fixed labels and safe local
+IDs/categories. See [test evidence](testing.md) and [diagnostics](diagnostics.md).
+No timing thresholds are CI gates. Binary encoding is not compression, and named
+pipes provide local IPC rather than a network transport.
 
 Primary references: [Protobuf encoding](https://protobuf.dev/programming-guides/encoding/), [C++ runtime compatibility](https://protobuf.dev/support/cross-version-runtime-guarantee/#cpp), [CodedInputStream](https://protobuf.dev/reference/cpp/api-docs/google.protobuf.io.coded_stream/), and the [pinned dependency build](https://github.com/protocolbuffers/protobuf/blob/v36.2/CMakeLists.txt).

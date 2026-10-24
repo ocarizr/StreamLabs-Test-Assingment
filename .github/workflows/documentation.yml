@@ -1,0 +1,45 @@
+name: API documentation
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  doxygen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install and record the documentation toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y doxygen ninja-build
+          doxygen --version
+      - name: Validate guides and generate the public API
+        run: |
+          python3 scripts/check_documentation.py
+          cmake -G Ninja -S docs -B build/documentation
+          cmake --build build/documentation --target docs
+          python3 scripts/check_documentation.py --html build/documentation/api/html
+      - name: Upload the generated API for review
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: pipeforge-api
+          path: build/documentation/api/html/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve documentation diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: documentation-warnings
+          path: build/documentation/api/warnings.log
+          if-no-files-found: warn
+          retention-days: 14

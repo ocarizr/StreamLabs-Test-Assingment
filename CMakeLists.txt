@@ -14,16 +14,29 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
 endif()
 
 # Build options and toolchain compatibility.
-# Static CRT makes the M1 Windows packages self-contained on supported Windows.
+# Static CRT keeps Windows packages self-contained on supported Windows.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(PIPEFORGE_WARNINGS_AS_ERRORS "Treat maintained project warnings as errors" ON)
 option(PIPEFORGE_SANITIZERS "Enable Linux Clang ASan/UBSan (including leak detection)" OFF)
 option(PIPEFORGE_WINDOWS_ASAN "Enable whole-build Windows clang-cl AddressSanitizer" OFF)
+option(PIPEFORGE_TSAN "Enable whole-build Linux Clang ThreadSanitizer" OFF)
 option(PIPEFORGE_ENABLE_PROFILING "Compile profiling scope macros into the application" ON)
 option(PIPEFORGE_BUILD_FUZZER "Build the Linux Clang libFuzzer decoder harness" OFF)
 option(PIPEFORGE_BUILD_BENCHMARKS "Build non-gating protocol measurements" OFF)
+option(PIPEFORGE_BUILD_DOCUMENTATION "Enable the Doxygen public API target" OFF)
+
+if(
+    PIPEFORGE_TSAN
+    AND (
+        PIPEFORGE_SANITIZERS OR PIPEFORGE_WINDOWS_ASAN OR PIPEFORGE_BUILD_FUZZER
+        OR NOT CMAKE_SYSTEM_NAME STREQUAL "Linux"
+        OR NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+    )
+)
+    message(FATAL_ERROR "ThreadSanitizer requires a separate Linux Clang build without ASan/fuzzing")
+endif()
 
 if(
     PIPEFORGE_BUILD_FUZZER
@@ -198,6 +211,10 @@ if(PIPEFORGE_BUILD_BENCHMARKS)
 endif()
 
 # Developer quality targets are available when their tools are installed.
+if(PIPEFORGE_BUILD_DOCUMENTATION)
+    add_subdirectory(docs)
+endif()
+
 find_package(Python3 3.10 COMPONENTS Interpreter QUIET)
 
 if(Python3_FOUND)
