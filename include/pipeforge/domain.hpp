@@ -1,3 +1,6 @@
+/** @file
+ * Trusted class registration and session-owned server repositories.
+ */
 #ifndef PIPEFORGE_DOMAIN_HPP
 #define PIPEFORGE_DOMAIN_HPP
 
@@ -11,12 +14,18 @@
 #include <string_view>
 
 namespace pipeforge::domain {
+/** Expected domain failures are structured remote errors. */
 template <typename T> using result = std::variant<T, protocol::remote_error>;
 
+/** Hard ceiling for retained values per session. */
 inline constexpr std::size_t max_stored_values = 100;
+/** Hard ceiling for retained objects per session. */
 inline constexpr std::size_t max_stored_objects = 100;
+/** Hard logical retained-state budget per session. */
 inline constexpr std::size_t max_session_bytes = std::size_t{8} * 1024 * 1024;
+/** Maximum logical state bytes allowed for one registered object. */
 inline constexpr std::size_t max_object_state_bytes = protocol::max_payload_bytes / 2;
+/** Logical per-record overhead included in session accounting. */
 inline constexpr std::size_t record_charge = 128;
 
 /**
@@ -29,27 +38,36 @@ inline constexpr std::size_t record_charge = 128;
 class object {
   public:
     virtual ~object() = default;
+    /** Return a nonnull deep copy, with no shared mutable object state. */
     [[nodiscard]] virtual std::unique_ptr<object> clone() const = 0;
+    /** Return the exact registered attribute set and types as owning values. */
     [[nodiscard]] virtual std::vector<protocol::named_value> state() const = 0;
+    /** Apply a bounded method to this candidate; expected failures return data. */
     [[nodiscard]] virtual result<protocol::value>
     invoke(std::string_view name, std::span<const protocol::named_value> arguments) = 0;
 
   protected:
     object() = default;
+    /** Derived adapters may copy their own state while implementing clone(). */
     object(const object&) = default;
+    /** Derived adapters retain ordinary value assignment for their owned state. */
     object& operator=(const object&) = default;
+    /** Derived adapters may transfer their owned state. */
     object(object&&) = default;
+    /** Derived adapters may replace their owned state by moving. */
     object& operator=(object&&) = default;
 };
 
+/** Trusted factory; returns an owned instance or expected error, retaining no arguments. */
 using object_factory =
     std::function<result<std::unique_ptr<object>>(std::span<const protocol::named_value>)>;
 
 /** Metadata is copied at registration. Factories must not retain the argument span. */
 struct class_definition {
-    protocol::class_description description;
-    object_factory create;
-    std::size_t max_state_bytes = max_object_state_bytes;
+    protocol::class_description description; ///< Owning validated public metadata.
+    object_factory create; ///< Trusted factory returning an independent owned object.
+    std::size_t max_state_bytes =
+        max_object_state_bytes; ///< Declared logical state ceiling; cannot exceed the hard bound.
 };
 
 /**
@@ -78,12 +96,14 @@ class class_registry {
  */
 class identifier_source {
   public:
+    /** Begin a nonwrapping sequence; zero starts exhausted, maximum is issued once. */
     explicit identifier_source(std::uint64_t first = 1);
     identifier_source(const identifier_source&) = delete;
     identifier_source& operator=(const identifier_source&) = delete;
     identifier_source(identifier_source&&) = delete;
     identifier_source& operator=(identifier_source&&) = delete;
     ~identifier_source() = default;
+    /** Return the next never-reused identity, or empty on exhaustion. */
     [[nodiscard]] std::optional<std::uint64_t> next();
 
   private:
@@ -92,9 +112,12 @@ class identifier_source {
 
 /** Limits may tighten the hard ceilings above; larger settings are clamped. Zero denies storage. */
 struct session_limits {
-    std::size_t values = max_stored_values;
-    std::size_t objects = max_stored_objects;
-    std::size_t bytes = max_session_bytes;
+    std::size_t values =
+        max_stored_values; ///< Requested retained-value ceiling, clamped to the hard maximum.
+    std::size_t objects =
+        max_stored_objects; ///< Requested retained-object ceiling, clamped to the hard maximum.
+    std::size_t bytes =
+        max_session_bytes; ///< Requested shared retained-state budget, clamped to the hard maximum.
 };
 
 /**
@@ -106,6 +129,7 @@ struct session_limits {
  */
 class session_store {
   public:
+    /** Borrow the frozen registry and shared ID source, clamping requested quotas. */
     session_store(const class_registry& registry,
                   identifier_source& identifiers,
                   session_limits limits = {});

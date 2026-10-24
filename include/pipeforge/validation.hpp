@@ -1,3 +1,6 @@
+/** @file
+ * Shared field, metadata and resource validation.
+ */
 #ifndef PIPEFORGE_VALIDATION_HPP
 #define PIPEFORGE_VALIDATION_HPP
 
@@ -9,6 +12,7 @@
 #include <string_view>
 
 namespace pipeforge::protocol {
+/** Aggregate known-message cardinality ceiling after bounded parsing. */
 inline constexpr std::size_t max_message_nodes = 4096;
 /** ASCII identifiers, shared by codec, registry and direct domain callers. */
 [[nodiscard]] bool valid_name(std::string_view name, bool allow_empty = false);

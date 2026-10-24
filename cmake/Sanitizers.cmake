@@ -6,6 +6,11 @@ if(PIPEFORGE_SANITIZERS)
         -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all
     )
     add_link_options(-fsanitize=address,undefined -fno-sanitize-recover=all)
+elseif(PIPEFORGE_TSAN)
+    # Instrument dependencies, protoc and consumers together in a separate tree.
+    # ThreadSanitizer cannot be combined with ASan or libFuzzer.
+    add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=thread)
 elseif(PIPEFORGE_WINDOWS_ASAN)
     # RelWithDebInfo avoids incompatible /RTC and /ZI. Apply to dependencies
     # too: Protobuf chooses its message layout using the ASan preprocessor macro.

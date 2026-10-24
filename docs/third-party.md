@@ -17,6 +17,46 @@
 | actions/upload-artifact | v6, `b7c566a772e6b6bfb58ed0dc250532a479d7789f` | Analyzer/fuzz diagnostic artifacts | [MIT](https://github.com/actions/upload-artifact/blob/b7c566a772e6b6bfb58ed0dc250532a479d7789f/LICENSE) |
 | actions/download-artifact | v4.3.0, `d3f86a106a0bac45b974a628896c90dbdf5c8093` | Retrieve tested ZIPs for publishing | [MIT](https://github.com/actions/download-artifact/blob/d3f86a106a0bac45b974a628896c90dbdf5c8093/LICENSE) |
 
-No upstream source is copied into the repository. Source acquisition preserves upstream license files in the build tree. CMake assembles the runtime dependency notices into `THIRD-PARTY-NOTICES.txt` and installs it alongside every component. M1 packages do not contain GoogleTest or development tools. MSVC/Windows SDK and the platform C++ runtime are supplied under their respective vendor terms; review distribution obligations whenever packaged dependencies change.
+No upstream source is copied into the repository. Source acquisition preserves upstream license files in the build tree. CMake assembles the runtime dependency notices into `THIRD-PARTY-NOTICES.txt` and installs it alongside every component. Packages do not contain GoogleTest or development tools. MSVC/Windows SDK and the platform C++ runtime are supplied under their respective vendor terms; review distribution obligations whenever packaged dependencies change.
 
-Protobuf, bundled utf8_range and Abseil license texts are appended to the installed runtime notices; protoc and upstream development libraries are not packaged. Abseil's archive tag is also locked by SHA256, so moved/changed contents fail acquisition. No upstream/generated source or binary is committed. Recheck [upstream compiler exceptions](m2-verification.md) when updating pins. Do not interpret this document as a license grant for PipeForge itself.
+Protobuf, bundled utf8_range and Abseil license texts are appended to the installed runtime notices; protoc and upstream development libraries are not packaged. Abseil's archive tag is also locked by SHA256, so moved/changed contents fail acquisition. No upstream/generated source or binary is committed. Do not interpret this document as a license grant for PipeForge itself.
+
+## Advisory review and updates
+
+`python scripts/check_dependencies.py` verifies the five FetchContent inputs have
+immutable Git revisions or SHA256-locked archives. `--online --report
+build/dependency-audit.json` additionally queries [OSV](https://osv.dev/) using the
+four source commits and Abseil's OSS-Fuzz package/version identity. The workflow
+runs on pull requests, master pushes, weekly and on manual dispatch. Findings,
+incomplete/paginated responses and service/network errors fail the audit; there is
+no advisory allowlist. Reports preserve query identities, acquisition hashes and
+the UTC lookup time. See [OSV's API](https://google.github.io/osv.dev/api/).
+
+A local review on 2026-10-23 returned no advisories for those queries. This is not
+a complete SBOM vulnerability scan or a guarantee that no vulnerability exists.
+Bundled fmt/utf8_range are fixed by their containing source trees and are not
+independent package-version queries; review their upstream changes when updating
+spdlog/Protobuf. OSV indexing and commit/version coverage can be incomplete.
+The audit does not cover runner OS packages, every compiler/tool advisory or
+malicious upstream changes. All source/license changes still require review.
+
+For an update, inspect upstream release/security notes and bundled/transitive
+changes, verify the exact source revision and archive hash, update the license
+inventory, regenerate matching protoc/runtime outputs, and run the compiler,
+sanitizer, fuzzing and extracted-package checks. Explicit offline source overrides
+bypass download verification and must be supplied at the reviewed revision.
+
+## Reviewed build exceptions
+
+Project warnings/analyzer families remain enabled. Pinned upstream code has narrow
+exceptions in `cmake/Dependencies.cmake`: remove unsupported `/MP` from clang-cl
+targets because Ninja owns parallelism; disable invalid `offsetof` only for
+Protobuf/generated message layouts; suppress MSVC C4715 only in its exhaustive
+parser/nonreturning JSON-unparser sources, C4624 only in the intentional dynamic
+message union source, and C5287 only in libprotoc's upb C enum adapters. CMake 4's
+upstream CMP0141 deprecation warning is disabled only inside dependency setup.
+Downloaded/generated sources are not modified. Recheck every exception when pins change.
+
+Documentation CI uses the Ubuntu runner's Doxygen package (minimum 1.9.8) and
+records its version. Local HTML generation also supports upstream Doxygen 1.13.2.
+These build tools are not linked or distributed in runtime ZIPs.
