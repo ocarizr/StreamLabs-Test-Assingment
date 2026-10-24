@@ -78,14 +78,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build --preset windows-asan
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Test native pipe security, completion, cancellation and peer exit
+      - name: Test client futures, native pipes and process acceptance
         shell: pwsh
         run: |
           . ./scripts/Enter-Toolchain.ps1
           $env:PATH = "$env:PIPEFORGE_LLVM_ROOT/bin;$env:PATH"
           $resource = clang-cl -print-resource-dir
           $env:PATH = "$resource/lib/windows;$env:PATH"
-          ctest --preset windows-asan -L 'unit|integration'
+          ctest --preset windows-asan -L 'unit|integration|end-to-end'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Preserve native sanitizer and CTest diagnostics
         if: always()

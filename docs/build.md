@@ -167,3 +167,20 @@ SHA256 (`72ca54c3b7940615776d8994c0b918a1d8c4981bdcf13b439eaa86a1bd477001`).
 The older LLVM 19 static sanitizer runtime failed captured C++ exception access in
 local testing, so Windows ASan requires LLVM 22+ and RelWithDebInfo. This constraint
 does not change normal Debug/Release or clang-tidy compiler support.
+
+## Client/runtime validation
+
+M5 builds `pipeforge-client-api` on all supported build platforms. Its scheduler,
+correlation and cancellation tests inject controlled framed-payload peers; native
+composition and IPC executables are Windows-only. See the [client guide](client.md).
+
+```powershell
+ctest --preset windows-clang -R 'Client\.|WindowsClient\.'
+ctest --preset windows-release -L end-to-end
+```
+
+The end-to-end label includes real R1–R8 server/client processes. Release adds
+runtime ZIP installation/extraction checks and repeats IPC for the split packages
+and bundle with a system-only PATH. The Windows ASan job includes this process
+label alongside unit/integration tests. Linux tests exercise the portable client
+with controlled peers; actual Win32 IPC still requires Windows.

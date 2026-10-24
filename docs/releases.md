@@ -31,7 +31,7 @@ The build job checks out the validated commit, revalidates it, configures `windo
 
 The explicit M1 runtime manifest requires `THIRD-PARTY-NOTICES.txt` for the statically linked diagnostic libraries and rejects debug symbols, tests, development libraries, source, nested paths, and extra files. Neither GoogleTest nor development tools are packaged. The static CRT avoids a separate Visual C++ redistributable dependency. Future runtime DLLs or notices must update the manifest and tests.
 
-Each ZIP is extracted into its own temporary directory and its executable(s) run with `--version` and `--help`, a system-only PATH, and no build-directory working directory. Additional invocations generate real log files and Chrome Trace events, which are parsed and checked for the expected scopes and timing fields. This validates diagnostics as well as package contents/version/startup. It does not replace later IPC acceptance tests or test every Windows installation.
+Each ZIP is extracted into its own temporary directory and its executable(s) run with `--version` and `--help`, a system-only PATH, and no build-directory working directory. Additional invocations generate real log files and Chrome Trace events, which are parsed and checked for the expected scopes and timing fields. This validates diagnostics as well as package contents/version/startup. M5 Release end-to-end checks additionally run R1–R8 IPC scenarios with the split client/server ZIPs and bundle extracted under a system-only PATH. These tests do not cover every Windows installation.
 
 Only validated ZIPs pass to the publishing job. That job has `contents: write`, executes no checked-out project code, rechecks the remote tag's commit, creates a draft release with the three assets, and publishes it after successful upload. Build/validation jobs have read-only permissions. No external personal access token is required. GitHub also displays its automatic source archives; those are separate from the three runtime assets.
 
@@ -52,6 +52,6 @@ python scripts/release.py smoke --tag V1.0.0
 
 Any validation, build, test, installation, or smoke-test failure prevents publishing. An upload failure may leave an unpublished draft; inspect it before retrying. The workflow does not overwrite existing releases or replace moved tags. Do not force-move published tags; use a new version for changed code.
 
-The M1 binaries expose only help/version and do not implement named-pipe communication. Tagging M1 can exercise the infrastructure but does not make later milestones complete. This implementation work does not itself create or push a tag or publish a release.
+The current M5 binaries also expose `--serve` and the three client demonstration modes. See the [client guide](client.md) for startup, readiness and graceful shutdown. This implementation work does not itself create or push a tag or publish a release.
 
 See [GitHub tag-push events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#push) and [GitHub CLI release creation](https://cli.github.com/manual/gh_release_create) for platform behavior.

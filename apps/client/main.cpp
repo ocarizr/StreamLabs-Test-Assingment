@@ -18,5 +18,10 @@ int main(int argc, char* argv[])
         arguments.emplace_back(argument);
     }
 
+#ifdef _WIN32
+    return pipeforge::run_application(
+        "pipeforge-client", arguments, std::cout, std::cerr, pipeforge::run_client_command);
+#else
     return pipeforge::run_application("pipeforge-client", arguments, std::cout, std::cerr);
+#endif
 }

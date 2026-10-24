@@ -1,9 +1,7 @@
 # Windows named-pipe transport
 
 M4 provides a Windows x64 transport library and bounded server host. The public
-interfaces are `pipeforge/transport.hpp` and `pipeforge/pipe_server.hpp`. M5 will
-provide future-based client calls and executable commands; the current production
-executables still expose only scaffold commands.
+interfaces are `pipeforge/transport.hpp` and `pipeforge/pipe_server.hpp`. M5 provides [future-based client calls and executable commands](client.md).
 
 ## Ownership and dependencies
 
@@ -11,7 +9,7 @@ executables still expose only scaffold commands.
 policy. `pipeforge-transport` adds Windows byte streams and depends on the shared
 protocol library, without importing domain/services into clients.
 `pipeforge-pipe-server` combines that transport with the M3 dispatcher. The server
-executable links the host; M5 will supply its command-line lifecycle.
+executable composes the host through its `--serve` command.
 
 The host owns a frozen startup registry, process-wide object IDs, one worker per
 pipe slot, and a shared stop source. There are 1–4 slots (default four). All secure
