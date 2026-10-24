@@ -1,12 +1,20 @@
 # PipeForge modernization plan
 
-Status: M0-M3 implemented; M4-M6 planned. Updated: 2026-10-23.
+Status: M0-M5 implemented; M6 planned. Updated: 2026-10-23.
 
 M1 establishes CMake, separate executables, tests/CI/master badges, C++ formatting and control-block spacing, static/runtime safety checks, spdlog logging, bounded Chrome Trace scope profiling, and tag-only release packaging. R1-R8 refer to the numbered functional requirements in the README. See [build instructions](build.md), [coding standards](coding-standards.md), [diagnostics](diagnostics.md), [release policy](releases.md), and [M1 verification](m1-verification.md).
 
-M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ contracts, full static Protobuf runtime/compiler integration, bounded validation, incremental framing, negative/golden tests, fuzz harness and initial size/CPU measurements. Domain services are implemented in M3; pipe I/O remains planned. Protocol code has no global logging or payload logging. Executed checks and remote-validation limits are recorded in [M2 verification](m2-verification.md).
+M2 implements the [version-1 protocol](protocol.md): schemas, independent C++ contracts, full static Protobuf runtime/compiler integration, bounded validation, incremental framing, negative/golden tests, fuzz harness and initial size/CPU measurements. Domain services are implemented in M3; Windows transport and client runtime are implemented in M4/M5. Protocol code has no global logging or payload logging. Executed checks and remote-validation limits are recorded in [M2 verification](m2-verification.md).
 
-M3 implements [domain/services](domain-services.md): shared contracts/validation without a codec dependency, a bounded startup registry, factories, session-owned value/object stores, Counter and TextBuffer, checked arithmetic, clone/validate/commit invocation, and a correlated dispatcher with safe optional diagnostics. In-process tests cover R3/R4/R6/R7/R8; cross-process acceptance remains M4/M5. See [M3 verification](m3-verification.md).
+M3 implements [domain/services](domain-services.md): shared contracts/validation without a codec dependency, a bounded startup registry, factories, session-owned value/object stores, Counter and TextBuffer, checked arithmetic, clone/validate/commit invocation, and a correlated dispatcher with safe optional diagnostics. In-process tests cover R3/R4/R6/R7/R8; M4/M5 add native transport and cross-process acceptance. See [M3 verification](m3-verification.md).
+
+M4 implements the [Windows transport](windows-transport.md), and M5 composes it with
+[client futures and executable demonstrations](client.md). Three bounded client
+workers separate writes, reads and deadlines; sixteen calls may be queued/in flight.
+Actual byte-pipe backpressure, cancellation, peer failures, process scenarios and
+installed ZIPs are covered. See [M4 verification](m4-verification.md) and
+[M5 verification](m5-verification.md). M6 retains the final documentation/CI audit,
+including Linux TSan coverage of the now-implemented portable client scheduler.
 
 ## 1. Source-review findings
 
@@ -57,7 +65,7 @@ R7 does not specify who initiates registration or require uploading source. The 
 
 ### Components and dependencies
 
-Target layout, introduced incrementally (transport/client runtime remain planned):
+Target layout, introduced incrementally through M5:
 
 ```text
 CMakeLists.txt / CMakePresets.json
@@ -203,7 +211,7 @@ Generated HTML artifacts are the initial deliverable. GitHub Pages is the prefer
 | M2: protocol (implemented) | Version-1 schemas/contracts, all operation/outcome shapes, constructor metadata, bounded full-runtime Protobuf codec, incremental framing, malformed/golden/negative tests, compiler-version guard test, deterministic and libFuzzer harnesses, size/CPU baseline. | Local protocol/generation/consumer checks and deterministic fuzz smoke; static/format checks; Linux sanitizer/libFuzzer workflows require remote execution. See M2 verification for exact executed checks. |
 | M3: domain/services (implemented) | Reuse M2's typed values, operations and metadata; bounded repositories, registry/factories, Counter and second type, object lifecycle, dispatcher; safe diagnostic IDs/categories at the service boundary. | In-process R3/R4/R6/R7/R8 tests, including ownership, quotas, duplicate registration, paging cursors and checked arithmetic without state mutation on overflow. Codec/service integration, lifecycle probes and safe logs/traces are covered; see M3 verification. |
 | M4: Windows IPC (implemented) | RAII wrappers, DACL, overlapped accept/read/write, M2 incremental framing, deadlines, cancellation, bounded simultaneous decodes/sessions, shutdown. | Real Windows framing/security/peer-exit/lifecycle tests, bounded workers with serialized domain access, pending-operation cleanup under ASan; fatal parse/frame errors close while correlated semantic errors can continue. See M4 verification for executed checks and limitations. |
-| M5: client and demonstration | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes satisfy R1-R8, simultaneous mixed-style sessions, unexpected response IDs/outcomes fail predictably. |
+| M5: client and demonstration (implemented) | Future-based connect/call, blocking wrappers, CLI/process tests; response correlation and outcome matching; opt-in call-site profiling/logging using M1 diagnostics. | Separate processes exercise R1-R8 and simultaneous mixed sessions; controlled peers verify out-of-order replies, invalid IDs/outcomes, admission bounds and exactly-once completion. Extracted split/bundle ZIPs repeat the process scenarios. See M5 verification for executed checks and remaining platform work. |
 | M6: quality/delivery | Complete CI matrix, usage/protocol/Doxygen guides, optional publishing, dependency review, repository cleanup. | Required checks pass, documentation matches behavior, clean checkout reproduces results, limitations documented. |
 
 Each implementation work item starts on a new branch. Review the diff, run appropriate checks, stage an explicit file list, and supply a suggested commit message without committing. Exclude local settings, secrets, machine-specific output, downloaded tools, and unrelated changes.

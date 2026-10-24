@@ -136,9 +136,23 @@ if(WIN32)
     pipeforge_project_options(pipeforge-pipe-server)
 endif()
 
+# Portable client scheduling/correlation; native channel composition is Windows-only.
+find_package(Threads REQUIRED)
+add_library(pipeforge-client-api STATIC src/client/client.cpp)
+target_link_libraries(
+    pipeforge-client-api
+    PUBLIC pipeforge-transport-core pipeforge-diagnostics Threads::Threads
+)
+pipeforge_project_options(pipeforge-client-api)
+
+if(WIN32)
+    target_sources(pipeforge-client-api PRIVATE src/client/windows_channel.cpp)
+    target_link_libraries(pipeforge-client-api PRIVATE pipeforge-transport)
+endif()
+
 # Common CLI support for the separate client and server applications.
 add_library(pipeforge-cli STATIC src/cli/application.cpp)
-target_link_libraries(pipeforge-cli PUBLIC pipeforge-diagnostics pipeforge-protocol)
+target_link_libraries(pipeforge-cli PUBLIC pipeforge-diagnostics pipeforge-transport-core)
 target_include_directories(pipeforge-cli PUBLIC include "${CMAKE_CURRENT_BINARY_DIR}/generated")
 pipeforge_project_options(pipeforge-cli)
 
@@ -156,6 +170,17 @@ target_link_libraries(pipeforge-server PRIVATE pipeforge-services)
 
 if(WIN32)
     target_link_libraries(pipeforge-server PRIVATE pipeforge-pipe-server)
+
+    # Each executable composes only its own runtime; the client never links the domain.
+    add_library(pipeforge-client-commands STATIC src/cli/client_commands.cpp)
+    target_link_libraries(pipeforge-client-commands PUBLIC pipeforge-cli pipeforge-client-api)
+    pipeforge_project_options(pipeforge-client-commands)
+    target_link_libraries(pipeforge-client PRIVATE pipeforge-client-commands)
+
+    add_library(pipeforge-server-commands STATIC src/cli/server_commands.cpp)
+    target_link_libraries(pipeforge-server-commands PUBLIC pipeforge-cli pipeforge-pipe-server)
+    pipeforge_project_options(pipeforge-server-commands)
+    target_link_libraries(pipeforge-server PRIVATE pipeforge-server-commands)
 endif()
 
 # Optional test suites and protocol measurements.

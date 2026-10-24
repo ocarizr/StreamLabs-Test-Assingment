@@ -29,11 +29,11 @@ NamedPipe is the only hard requirement for the IPC
 
 ## Project status
 
-M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. M3 adds session-owned value/object repositories, extensible class factories, Counter/TextBuffer behavior, bounded pagination, transactional invocation and correlated in-process dispatch. M4 adds the secure Windows named-pipe stream and bounded host, overlapped I/O, deadlines/cancellation and native failure/lifecycle tests. The executables support `--help` and `--version` with optional diagnostics; IPC commands and future-based client calls arrive in M5.
+M1 supplies CMake, separate executable scaffolds, tests/CI, formatting/static analysis, logging/profiling and tag-only releases. M2 adds the version-1 Protobuf schemas, shared static protocol library, bounded codecs and incremental framing, adversarial tests, decoder fuzzing workflow and a size/CPU baseline. M3 adds session-owned value/object repositories, extensible class factories, Counter/TextBuffer behavior, bounded pagination, transactional invocation and correlated in-process dispatch. M4 adds the secure Windows named-pipe stream and bounded host, overlapped I/O, deadlines/cancellation and native failure/lifecycle tests. M5 adds bounded future/blocking client APIs, response correlation, executable server/client commands and R1–R8 process scenarios.
 
 The active implementation lives in `apps/`, `include/`, `src/` and `proto/`. The unused legacy `Client/` and `Server/` sources, Visual Studio solution and project files have been removed; historical versions remain available in Git history. Generated IDE/build outputs are not tracked.
 
-The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). See [domain/services](docs/domain-services.md) and [M3 verification](docs/m3-verification.md). See [Windows transport](docs/windows-transport.md) and [M4 verification](docs/m4-verification.md). The full cross-process client demonstration remains M5.
+The [modernization plan](docs/modernization-plan.md) defines the remaining architecture and acceptance criteria. See the [protocol contract](docs/protocol.md), [M2 verification/baseline](docs/m2-verification.md), [build instructions](docs/build.md), [release instructions](docs/releases.md), and [dependency notices](docs/third-party.md). See [domain/services](docs/domain-services.md) and [M3 verification](docs/m3-verification.md). See [Windows transport](docs/windows-transport.md) and [M4 verification](docs/m4-verification.md). See the [client API and demonstration](docs/client.md) and [M5 verification](docs/m5-verification.md).
 
 ## Build and test
 
@@ -50,9 +50,20 @@ ctest --preset windows-debug
 
 The first configure acquires pinned runtime dependencies and builds the matching `protoc`; test builds also acquire GoogleTest. This takes longer than the M1 build. Use `windows-release` for optimized builds or `windows-clang` for clang-cl. The portable core can be built with `linux-debug`; this does not provide Linux named-pipe support. Formatting uses clang-format 19.1.5 for C++ and schemas.
 
+Start the host in one terminal and run the client in another:
+
+```powershell
+./build/windows-debug/pipeforge-server.exe --serve
+./build/windows-debug/pipeforge-client.exe --demo-mixed
+```
+
+The server prints `READY` when listening; type `stop` in its terminal for graceful
+shutdown. `--demo-sync` and `--demo-async` exercise the other call styles. Endpoint,
+timeout, concurrency and library usage are explained in the [client guide](docs/client.md).
+
 The [coding standards](docs/coding-standards.md) define the project's C++20 layout and Core Guidelines policy, analyzer checks, and reviewed exceptions. clang-tidy combines Clang Static Analyzer, bug-prone, CERT, ownership/bounds, and other guideline diagnostics. It detects classes of defects rather than proving that all undefined behavior or leaks are absent.
 
-Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration covers codec/service behavior, diagnostics, Git provenance and real Windows pipes, including a separate abrupt-exit peer process. End-to-end tests cover installed distributions; named-pipe process behavior remains planned for later milestones.
+Unit tests, process/Git integration tests, and isolated installed-package end-to-end tests have separate CTest labels and workflows. Integration covers codec/service behavior, diagnostics, Git provenance and real Windows pipes, including a separate abrupt-exit peer process. End-to-end tests run R1–R8 in separate processes, including simultaneous mixed clients, and repeat the scenarios with the split runtime ZIPs and bundle extracted under a system-only PATH.
 
 ## Logging and profiling
 

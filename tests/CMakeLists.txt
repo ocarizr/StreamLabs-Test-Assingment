@@ -1,7 +1,26 @@
 include(GoogleTest)
 
+# Controlled peer completion exercises the portable client independently of Windows.
+add_executable(pipeforge-client-tests unit/client_tests.cpp)
+target_link_libraries(pipeforge-client-tests PRIVATE pipeforge-client-api GTest::gtest_main)
+pipeforge_project_options(pipeforge-client-tests)
+gtest_discover_tests(pipeforge-client-tests PROPERTIES LABELS unit TIMEOUT 20)
+
 # Real Windows pipe tests and the separately launched abrupt-exit peer.
 if(WIN32)
+    add_executable(pipeforge-native-client-tests integration/windows_client_tests.cpp)
+    target_include_directories(
+        pipeforge-native-client-tests PRIVATE ../src/transport/windows unit
+    )
+    target_link_libraries(
+        pipeforge-native-client-tests
+        PRIVATE pipeforge-client-api pipeforge-pipe-server GTest::gtest_main
+    )
+    pipeforge_project_options(pipeforge-native-client-tests)
+    gtest_discover_tests(
+        pipeforge-native-client-tests PROPERTIES LABELS integration TIMEOUT 20
+    )
+
     add_executable(pipeforge-pipe-peer integration/pipe_peer.cpp)
     target_include_directories(pipeforge-pipe-peer PRIVATE ../src/transport/windows)
     target_link_libraries(pipeforge-pipe-peer PRIVATE pipeforge-transport)
@@ -110,6 +129,16 @@ endforeach()
 
 # Python-driven checks validate tooling and real-process integration.
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+
+if(WIN32)
+    add_test(
+        NAME ipc-process-acceptance
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/end_to_end/check_ipc.py"
+            --client "$<TARGET_FILE:pipeforge-client>"
+            --server "$<TARGET_FILE:pipeforge-server>"
+    )
+    set_tests_properties(ipc-process-acceptance PROPERTIES TIMEOUT 180 LABELS end-to-end)
+endif()
 
 add_test(
     NAME sanitizer-configuration
